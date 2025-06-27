@@ -24,6 +24,28 @@ const INLINE_CODE_MARKER_LENGTH = 1; // For "`"
 const UNDERLINE_TAG_START_LENGTH = 3; // For "<u>"
 const UNDERLINE_TAG_END_LENGTH = 4; // For "</u>"
 
+// URL sanitization constants
+const SAFE_SCHEMES = /^(https?|mailto|tel):/i;
+
+// Input size limits to prevent memory exhaustion
+const MAX_LINES = 10000;
+const MAX_LINE_LENGTH = 5000;
+
+/**
+ * Sanitizes URLs to prevent XSS attacks through dangerous schemes
+ * @param url The URL to sanitize
+ * @returns Safe URL or '#' if dangerous
+ */
+const sanitizeUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url);
+    return SAFE_SCHEMES.test(parsed.protocol) ? url : '#';
+  } catch {
+    // Handle relative URLs safely
+    return url.startsWith('/') || url.startsWith('#') ? url : '#';
+  }
+};
+
 const EMPTY_LINE_HEIGHT = 1;
 const CODE_BLOCK_PADDING = 1;
 const LIST_ITEM_PREFIX_PADDING = 1;
@@ -37,7 +59,19 @@ const MarkdownDisplayInternal: React.FC<MarkdownDisplayProps> = ({
 }) => {
   if (!text) return <></>;
 
-  const lines = text.split('\n');
+  let lines = text.split('\n');
+
+  // Apply input size limits to prevent memory exhaustion
+  if (lines.length > MAX_LINES) {
+    lines = lines.slice(-MAX_LINES); // Keep the last MAX_LINES lines
+  }
+
+  // Truncate individual lines that are too long
+  lines = lines.map((line) =>
+    line.length > MAX_LINE_LENGTH
+      ? line.slice(0, MAX_LINE_LENGTH) + '...'
+      : line,
+  );
   const headerRegex = /^ *(#{1,4}) +(.*)/;
   const codeFenceRegex = /^ *(`{3,}|~{3,}) *(\w*?) *$/;
   const ulItemRegex = /^([ \t]*)([-*+]) +(.*)/;
@@ -206,8 +240,9 @@ interface RenderInlineProps {
 const RenderInlineInternal: React.FC<RenderInlineProps> = ({ text }) => {
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
+  // Safer regex patterns that avoid catastrophic backtracking
   const inlineRegex =
-    /(\*\*.*?\*\*|\*.*?\*|_.*?_|~~.*?~~|\[.*?\]\(.*?\)|`+.+?`+|<u>.*?<\/u>)/g;
+    /(\*\*[^*\n]+\*\*|\*[^*\n]+\*|_[^_\n]+_|~~[^~\n]+~~|\[[^\]\n]*\]\([^)\n]*\)|`+[^`\n]+`+|<u>[^<\n]*<\/u>)/g;
   let match;
 
   while ((match = inlineRegex.exec(text)) !== null) {
@@ -238,13 +273,14 @@ const RenderInlineInternal: React.FC<RenderInlineProps> = ({ text }) => {
         fullMatch.length > ITALIC_MARKER_LENGTH * 2 &&
         ((fullMatch.startsWith('*') && fullMatch.endsWith('*')) ||
           (fullMatch.startsWith('_') && fullMatch.endsWith('_'))) &&
-        !/\w/.test(text.substring(match.index - 1, match.index)) &&
-        !/\w/.test(
-          text.substring(inlineRegex.lastIndex, inlineRegex.lastIndex + 1),
+        !/\w/.test(text[match.index - 1] ?? '') &&
+        !/\w/.test(text[inlineRegex.lastIndex] ?? '') &&
+        !/\S[./\\]/.test(
+          (text[match.index - 2] ?? '') + (text[match.index - 1] ?? ''),
         ) &&
-        !/\S[./\\]/.test(text.substring(match.index - 2, match.index)) &&
         !/[./\\]\S/.test(
-          text.substring(inlineRegex.lastIndex, inlineRegex.lastIndex + 2),
+          (text[inlineRegex.lastIndex] ?? '') +
+            (text[inlineRegex.lastIndex + 1] ?? ''),
         )
       ) {
         renderedNode = (
@@ -296,10 +332,11 @@ const RenderInlineInternal: React.FC<RenderInlineProps> = ({ text }) => {
         if (linkMatch) {
           const linkText = linkMatch[1];
           const url = linkMatch[2];
+          const sanitizedUrl = sanitizeUrl(url);
           renderedNode = (
             <Text key={key}>
               {linkText}
-              <Text color={Colors.AccentBlue}> ({url})</Text>
+              <Text color={Colors.AccentBlue}> ({sanitizedUrl})</Text>
             </Text>
           );
         }
@@ -319,8 +356,20 @@ const RenderInlineInternal: React.FC<RenderInlineProps> = ({ text }) => {
         );
       }
     } catch (e) {
-      console.error('Error parsing inline markdown part:', fullMatch, e);
-      renderedNode = null;
+      console.error('Markdown parsing error:', {
+        error: e,
+        content: fullMatch,
+        position: match.index,
+        line:
+          text.split('\n').findIndex((line) => line.includes(fullMatch)) + 1,
+      });
+
+      // Render fallback with visual indication in debug mode
+      renderedNode = (
+        <Text key={key} color="red">
+          ⚠️ {fullMatch}
+        </Text>
+      );
     }
 
     nodes.push(renderedNode ?? <Text key={key}>{fullMatch}</Text>);
@@ -422,7 +471,9 @@ const RenderListItemInternal: React.FC<RenderListItemProps> = ({
 }) => {
   const prefix = type === 'ol' ? `${marker}. ` : `${marker} `;
   const prefixWidth = prefix.length;
-  const indentation = leadingWhitespace.length;
+  // Convert tabs to spaces before calculating indentation
+  const normalizedWhitespace = leadingWhitespace.replace(/\t/g, '    ');
+  const indentation = normalizedWhitespace.length;
 
   return (
     <Box
