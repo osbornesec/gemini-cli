@@ -297,6 +297,10 @@ function findEnvFile(startDir: string): string | null {
 export function loadEnvironment(): void {
   const envFilePath = findEnvFile(process.cwd());
   if (envFilePath) {
-    dotenv.config({ path: envFilePath, quiet: true });
+    try {
+      dotenv.config({ path: envFilePath });
+    } catch (_error) {
+      // Silently ignore errors loading .env file
+    }
   }
 }
