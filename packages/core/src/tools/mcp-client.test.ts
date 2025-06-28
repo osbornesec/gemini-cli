@@ -14,7 +14,7 @@ import {
   afterEach,
   Mocked,
 } from 'vitest';
-import { discoverMcpTools, sanatizeParameters } from './mcp-client.js';
+import { discoverMcpTools, sanitizeParameters } from './mcp-client.js';
 import { Schema, Type } from '@google/genai';
 import { Config, MCPServerConfig } from '../config/config.js';
 import { DiscoveredMCPTool } from './mcp-tool.js';
@@ -22,6 +22,17 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { parse, ParseEntry } from 'shell-quote';
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import {
+  MCPServerStatus,
+  MCPDiscoveryState,
+  getMCPServerStatus,
+  getAllMCPServerStatuses,
+  getMCPDiscoveryState,
+  addMCPStatusChangeListener,
+  removeMCPStatusChangeListener,
+  MCP_DEFAULT_TIMEOUT_MSEC,
+} from "./mcp-client.js";
 
 // Mock dependencies
 vi.mock('shell-quote');
@@ -58,6 +69,14 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => {
 });
 
 vi.mock('@modelcontextprotocol/sdk/client/sse.js', () => {
+
+vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => {
+  const MockedStreamableHTTPTransport = vi.fn().mockImplementation(function (this: any) {
+    this.close = vi.fn().mockResolvedValue(undefined);
+    return this;
+  });
+  return { StreamableHTTPClientTransport: MockedStreamableHTTPTransport };
+});
   const MockedSSETransport = vi.fn().mockImplementation(function (this: any) {
     this.close = vi.fn().mockResolvedValue(undefined); // Add mock close method
     return this;
@@ -235,6 +254,265 @@ describe('discoverMcpTools', () => {
   });
 
   it('should discover tools via mcpServers config (sse)', async () => {
+
+  it("should discover tools via mcpServers config (streamable http)", async () => {
+    const serverConfig: MCPServerConfig = { httpUrl: "http://localhost:1234/mcp" };
+    mockConfig.getMcpServers.mockReturnValue({ "http-server": serverConfig });
+
+    const mockTool = {
+      name: "tool-http",
+      description: "desc-http",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(new URL(serverConfig.httpUrl!));
+    expect(mockToolRegistry.registerTool).toHaveBeenCalledWith(
+      expect.any(DiscoveredMCPTool),
+    );
+    const registeredTool = mockToolRegistry.registerTool.mock.calls[0][0] as DiscoveredMCPTool;
+    expect(registeredTool.name).toBe("tool-http");
+  });
+
+  it("should prioritize httpUrl over url and command", async () => {
+    const serverConfig: MCPServerConfig = {
+      httpUrl: "http://localhost:1234/mcp",
+      url: "http://localhost:1234/sse",
+      command: "./mcp-cmd",
+    };
+    mockConfig.getMcpServers.mockReturnValue({ "priority-http-server": serverConfig });
+
+    const mockTool = {
+      name: "priorityHttpTool",
+      description: "Tool from HTTP priority",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    expect(StreamableHTTPClientTransport).toHaveBeenCalled();
+    expect(SSEClientTransport).not.toHaveBeenCalled();
+    expect(StdioClientTransport).not.toHaveBeenCalled();
+  });
+
+  it("should handle tool name length truncation correctly", async () => {
+    const serverConfig: MCPServerConfig = { command: "./mcp-long-name" };
+    mockConfig.getMcpServers.mockReturnValue({ "long-name-server": serverConfig });
+
+    const longName = "a".repeat(80); // Longer than 63 characters
+    const mockTool = {
+      name: longName,
+      description: "Tool with very long name",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    const registeredTool = mockToolRegistry.registerTool.mock.calls[0][0] as DiscoveredMCPTool;
+    expect(registeredTool.name.length).toBeLessThanOrEqual(63);
+    expect(registeredTool.name).toContain("___"); // Should contain truncation marker
+    expect(registeredTool.serverToolName).toBe(longName); // Original name preserved
+  });
+
+  it("should replace invalid characters in tool names", async () => {
+    const serverConfig: MCPServerConfig = { command: "./mcp-invalid-chars" };
+    mockConfig.getMcpServers.mockReturnValue({ "invalid-chars-server": serverConfig });
+
+    const invalidName = "tool@with#invalid$chars%and^more*symbols!";
+    const mockTool = {
+      name: invalidName,
+      description: "Tool with invalid characters",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    const registeredTool = mockToolRegistry.registerTool.mock.calls[0][0] as DiscoveredMCPTool;
+    expect(registeredTool.name).toMatch(/^[a-zA-Z0-9_.-]+$/); // Only valid characters
+    expect(registeredTool.serverToolName).toBe(invalidName); // Original name preserved
+  });
+
+  it("should handle custom timeout configurations", async () => {
+    const customTimeout = 30000;
+    const serverConfig: MCPServerConfig = {
+      command: "./mcp-timeout",
+      timeout: customTimeout,
+    };
+    mockConfig.getMcpServers.mockReturnValue({ "timeout-server": serverConfig });
+
+    const mockTool = {
+      name: "timeoutTool",
+      description: "Tool with custom timeout",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    expect(Client.prototype.connect).toHaveBeenCalledWith(
+      expect.any(Object),
+      { timeout: customTimeout },
+    );
+
+    const registeredTool = mockToolRegistry.registerTool.mock.calls[0][0] as DiscoveredMCPTool;
+    expect(registeredTool.timeout).toBe(customTimeout);
+  });
+
+  it("should use default timeout when not specified", async () => {
+    const serverConfig: MCPServerConfig = { command: "./mcp-default-timeout" };
+    mockConfig.getMcpServers.mockReturnValue({ "default-timeout-server": serverConfig });
+
+    const mockTool = {
+      name: "defaultTimeoutTool",
+      description: "Tool with default timeout",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    expect(Client.prototype.connect).toHaveBeenCalledWith(
+      expect.any(Object),
+      { timeout: MCP_DEFAULT_TIMEOUT_MSEC },
+    );
+
+    const registeredTool = mockToolRegistry.registerTool.mock.calls[0][0] as DiscoveredMCPTool;
+    expect(registeredTool.timeout).toBe(MCP_DEFAULT_TIMEOUT_MSEC);
+  });
+
+  it("should handle trust configuration", async () => {
+    const serverConfig: MCPServerConfig = {
+      command: "./mcp-trust",
+      trust: true,
+    };
+    mockConfig.getMcpServers.mockReturnValue({ "trust-server": serverConfig });
+
+    const mockTool = {
+      name: "trustTool",
+      description: "Tool with trust configuration",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    const registeredTool = mockToolRegistry.registerTool.mock.calls[0][0] as DiscoveredMCPTool;
+    expect(registeredTool.trust).toBe(true);
+  });
+
+  it("should handle environment variables in stdio transport", async () => {
+    const serverConfig: MCPServerConfig = {
+      command: "./mcp-env",
+      env: { CUSTOM_VAR: "test-value", ANOTHER_VAR: "another-value" },
+      cwd: "/custom/path",
+    };
+    mockConfig.getMcpServers.mockReturnValue({ "env-server": serverConfig });
+
+    const mockTool = {
+      name: "envTool",
+      description: "Tool with custom environment",
+      inputSchema: { type: "object" as const, properties: {} },
+    };
+    vi.mocked(Client.prototype.listTools).mockResolvedValue({
+      tools: [mockTool],
+    });
+
+    mockToolRegistry.getToolsByServer.mockReturnValueOnce([
+      expect.any(DiscoveredMCPTool),
+    ]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    expect(StdioClientTransport).toHaveBeenCalledWith({
+      command: serverConfig.command,
+      args: [],
+      env: expect.objectContaining({
+        CUSTOM_VAR: "test-value",
+        ANOTHER_VAR: "another-value",
+      }),
+      cwd: "/custom/path",
+      stderr: "pipe",
+    });
+  });
     const serverConfig: MCPServerConfig = { url: 'http://localhost:1234/sse' };
     mockConfig.getMcpServers.mockReturnValue({ 'sse-server': serverConfig });
 
@@ -538,10 +816,144 @@ describe('discoverMcpTools', () => {
   });
 });
 
-describe('sanatizeParameters', () => {
+describe("MCP Status Management", () => {
+  let mockListener: vi.MockedFunction<any>;
+
+  beforeEach(() => {
+    mockListener = vi.fn();
+    // Clear any existing listeners
+    while (statusChangeListeners.length > 0) {
+      statusChangeListeners.pop();
+    }
+    // Clear server statuses
+    mcpServerStatusesInternal.clear();
+    mcpDiscoveryState = MCPDiscoveryState.NOT_STARTED;
+  });
+
+  afterEach(() => {
+    // Clean up listeners
+    while (statusChangeListeners.length > 0) {
+      statusChangeListeners.pop();
+    }
+  });
+
+  it("should add and remove status change listeners correctly", () => {
+    expect(statusChangeListeners.length).toBe(0);
+
+    addMCPStatusChangeListener(mockListener);
+    expect(statusChangeListeners.length).toBe(1);
+    expect(statusChangeListeners[0]).toBe(mockListener);
+
+    const secondListener = vi.fn();
+    addMCPStatusChangeListener(secondListener);
+    expect(statusChangeListeners.length).toBe(2);
+
+    removeMCPStatusChangeListener(mockListener);
+    expect(statusChangeListeners.length).toBe(1);
+    expect(statusChangeListeners[0]).toBe(secondListener);
+
+    removeMCPStatusChangeListener(secondListener);
+    expect(statusChangeListeners.length).toBe(0);
+  });
+
+  it("should handle removing non-existent listener gracefully", () => {
+    const nonExistentListener = vi.fn();
+    expect(() => removeMCPStatusChangeListener(nonExistentListener)).not.toThrow();
+    expect(statusChangeListeners.length).toBe(0);
+  });
+
+  it("should notify all listeners when server status changes", async () => {
+    const listener1 = vi.fn();
+    const listener2 = vi.fn();
+
+    addMCPStatusChangeListener(listener1);
+    addMCPStatusChangeListener(listener2);
+
+    const serverConfig: MCPServerConfig = { command: "./mcp-status" };
+    mockConfig.getMcpServers.mockReturnValue({ "status-server": serverConfig });
+    mockToolRegistry.getToolsByServer.mockReturnValue([]);
+
+    await discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    // Should be called at least once for CONNECTING status
+    expect(listener1).toHaveBeenCalledWith("status-server", MCPServerStatus.CONNECTING);
+    expect(listener2).toHaveBeenCalledWith("status-server", MCPServerStatus.CONNECTING);
+  });
+
+  it("should return correct server status", () => {
+    expect(getMCPServerStatus("nonexistent")).toBe(MCPServerStatus.DISCONNECTED);
+
+    // Simulate status change during discovery
+    updateMCPServerStatus("test-server", MCPServerStatus.CONNECTING);
+    expect(getMCPServerStatus("test-server")).toBe(MCPServerStatus.CONNECTING);
+
+    updateMCPServerStatus("test-server", MCPServerStatus.CONNECTED);
+    expect(getMCPServerStatus("test-server")).toBe(MCPServerStatus.CONNECTED);
+  });
+
+  it("should return all server statuses", () => {
+    const statuses = getAllMCPServerStatuses();
+    expect(statuses).toBeInstanceOf(Map);
+    expect(statuses.size).toBe(0);
+
+    updateMCPServerStatus("server1", MCPServerStatus.CONNECTED);
+    updateMCPServerStatus("server2", MCPServerStatus.DISCONNECTED);
+
+    const updatedStatuses = getAllMCPServerStatuses();
+    expect(updatedStatuses.size).toBe(2);
+    expect(updatedStatuses.get("server1")).toBe(MCPServerStatus.CONNECTED);
+    expect(updatedStatuses.get("server2")).toBe(MCPServerStatus.DISCONNECTED);
+  });
+
+  it("should track discovery state correctly", async () => {
+    expect(getMCPDiscoveryState()).toBe(MCPDiscoveryState.NOT_STARTED);
+
+    const serverConfig: MCPServerConfig = { command: "./mcp-discovery" };
+    mockConfig.getMcpServers.mockReturnValue({ "discovery-server": serverConfig });
+    mockToolRegistry.getToolsByServer.mockReturnValue([]);
+
+    const discoveryPromise = discoverMcpTools(
+      mockConfig.getMcpServers() ?? {},
+      mockConfig.getMcpServerCommand(),
+      mockToolRegistry as any,
+    );
+
+    expect(getMCPDiscoveryState()).toBe(MCPDiscoveryState.IN_PROGRESS);
+
+    await discoveryPromise;
+    expect(getMCPDiscoveryState()).toBe(MCPDiscoveryState.COMPLETED);
+  });
+
+  it("should mark discovery as completed even when errors occur", async () => {
+    expect(getMCPDiscoveryState()).toBe(MCPDiscoveryState.NOT_STARTED);
+
+    vi.mocked(parse).mockImplementation(() => {
+      throw new Error("Parsing failed");
+    });
+
+    mockConfig.getMcpServerCommand.mockReturnValue("invalid command");
+
+    await expect(
+      discoverMcpTools(
+        {},
+        mockConfig.getMcpServerCommand(),
+        mockToolRegistry as any,
+      ),
+    ).rejects.toThrow();
+
+    expect(getMCPDiscoveryState()).toBe(MCPDiscoveryState.COMPLETED);
+  });
+});
+
+
+describe('sanitizeParameters', () => {
   it('should do nothing for an undefined schema', () => {
     const schema = undefined;
-    sanatizeParameters(schema);
+    sanitizeParameters(schema);
   });
 
   it('should remove default when anyOf is present', () => {
@@ -549,11 +961,11 @@ describe('sanatizeParameters', () => {
       anyOf: [{ type: Type.STRING }, { type: Type.NUMBER }],
       default: 'hello',
     };
-    sanatizeParameters(schema);
+    sanitizeParameters(schema);
     expect(schema.default).toBeUndefined();
   });
 
-  it('should recursively sanatize items in anyOf', () => {
+  it('should recursively sanitize items in anyOf', () => {
     const schema: Schema = {
       anyOf: [
         {
@@ -563,22 +975,22 @@ describe('sanatizeParameters', () => {
         { type: Type.NUMBER },
       ],
     };
-    sanatizeParameters(schema);
+    sanitizeParameters(schema);
     expect(schema.anyOf![0].default).toBeUndefined();
   });
 
-  it('should recursively sanatize items in items', () => {
+  it('should recursively sanitize items in items', () => {
     const schema: Schema = {
       items: {
         anyOf: [{ type: Type.STRING }],
         default: 'world',
       },
     };
-    sanatizeParameters(schema);
+    sanitizeParameters(schema);
     expect(schema.items!.default).toBeUndefined();
   });
 
-  it('should recursively sanatize items in properties', () => {
+  it('should recursively sanitize items in properties', () => {
     const schema: Schema = {
       properties: {
         prop1: {
@@ -587,7 +999,7 @@ describe('sanatizeParameters', () => {
         },
       },
     };
-    sanatizeParameters(schema);
+    sanitizeParameters(schema);
     expect(schema.properties!.prop1.default).toBeUndefined();
   });
 
@@ -614,7 +1026,7 @@ describe('sanatizeParameters', () => {
         },
       },
     };
-    sanatizeParameters(schema);
+    sanitizeParameters(schema);
     expect(schema.properties!.prop1.items!.default).toBeUndefined();
     const nestedProp =
       schema.properties!.prop2.anyOf![0].properties!.nestedProp;
