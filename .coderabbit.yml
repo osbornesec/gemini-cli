@@ -1,0 +1,120 @@
+# CodeRabbit configuration for comprehensive repository review
+reviews:
+  auto_review: true
+  
+  # Request review of all files, not just changed ones
+  review_all: true
+  
+  # Specify file patterns to include
+  include_patterns:
+    - "**/*.ts"
+    - "**/*.tsx"  
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.json"
+    - "**/*.yml"
+    - "**/*.yaml"
+    - "**/*.md"
+    - "**/package.json"
+    - "**/tsconfig.json"
+    - "**/eslint.config.js"
+    - "**/*.test.*"
+    - "**/*.spec.*"
+
+  # Areas to focus on
+  focus_areas:
+    - security
+    - performance
+    - best_practices
+    - code_quality
+    - maintainability
+    - testing
+    - documentation
+
+  # Enable detailed analysis
+  detailed_analysis: true
+  
+  # Request suggestions for refactoring
+  suggest_refactoring: true
+  
+  # Path-specific instructions for different file types
+  path_instructions:
+    - path: "**/*.ts"
+      instructions: |
+        Review TypeScript code for:
+        - Proper type safety and avoid any types
+        - Missing JSDoc documentation on public functions
+        - Error handling patterns
+        - Performance optimization opportunities
+        
+    - path: "**/*.tsx"
+      instructions: |
+        Review React TypeScript components for:
+        - Component prop documentation and typing
+        - Hook dependency arrays and proper usage
+        - Accessibility considerations
+        - Performance optimizations (useMemo, useCallback)
+        - Missing unit tests for component behavior
+        
+    - path: "packages/cli/src/ui/**.*"
+      instructions: |
+        Review terminal UI code for:
+        - Ink-specific best practices
+        - Terminal rendering performance
+        - User interaction patterns
+        - State management in CLI context
+        
+    - path: "packages/core/src/tools/**.*"
+      instructions: |
+        Review tool implementations for:
+        - Security implications of file operations
+        - Error handling and user feedback
+        - Tool interface consistency
+        - Integration test coverage
+        
+    - path: "**/*.test.*"
+      instructions: |
+        Review test code for:
+        - Comprehensive test coverage including edge cases
+        - Proper mocking of external dependencies
+        - Clear test descriptions and arrange-act-assert pattern
+        - Integration test scenarios for workflows
+
+# Code generation settings
+code_generation:
+  docstrings:
+    path_instructions:
+      - path: "**/*.ts"
+        instructions: |
+          Generate comprehensive JSDoc docstrings with:
+          - @param descriptions for all parameters including types
+          - @returns description with return type information
+          - @throws for possible exceptions
+          - @example usage examples for complex functions
+          - Implementation notes for non-obvious logic
+          
+      - path: "**/*.tsx"
+        instructions: |
+          Generate React component documentation with:
+          - @component tag and component description
+          - @param for all props with detailed descriptions
+          - @example showing typical usage patterns
+          - Accessibility notes where relevant
+
+# Custom rules for this TypeScript/React CLI project
+rules:
+  typescript:
+    strict_mode: true
+    prefer_type_annotations: true
+    
+  react:
+    prefer_functional_components: true
+    check_hooks_dependencies: true
+    
+  testing:
+    require_test_coverage: true
+    suggest_missing_tests: true
+    
+  security:
+    check_dependencies: true
+    scan_secrets: true
