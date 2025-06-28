@@ -115,14 +115,22 @@ export const MaxSizedBox: React.FC<MaxSizedBoxProps> = ({
   if (maxWidth === undefined) {
     throw new Error('maxWidth must be defined when maxHeight is set.');
   }
+  /**
+   * Recursively traverses React nodes, processing each `<Box>` element as a row for layout.
+   *
+   * For each `<Box>` found, invokes `layoutInkElementAsStyledText` to convert it into styled text segments.
+   * Logs an error if a non-`<Box>` element is encountered at the top level.
+   */
   function visitRows(element: React.ReactNode) {
-    if (!React.isValidElement(element)) {
+    if (!React.isValidElement<{ children?: React.ReactNode }>(element)) {
       return;
     }
+
     if (element.type === Fragment) {
       React.Children.forEach(element.props.children, visitRows);
       return;
     }
+
     if (element.type === Box) {
       layoutInkElementAsStyledText(element, maxWidth!, laidOutStyledText);
       return;
@@ -219,34 +227,18 @@ interface Row {
 }
 
 /**
- * Flattens the child elements of MaxSizedBox into an array of `Row` objects.
+ * Converts a `<Box>` element representing a row into a `Row` object containing styled text segments, separating wrapping and non-wrapping segments.
  *
- * This function expects a specific child structure to function correctly:
- * 1. The top-level child of `MaxSizedBox` should be a single `<Box>`. This
- *    outer box is primarily for structure and is not directly rendered.
- * 2. Inside the outer `<Box>`, there should be one or more children. Each of
- *    these children must be a `<Box>` that represents a row.
- * 3. Inside each "row" `<Box>`, the children must be `<Text>` components.
+ * Validates that the input is a `<Box>` with `flexDirection="row"` and that its children are `<Text>` elements or fragments. Enforces that non-wrapping `<Text>` elements do not appear after wrapping ones within the same row, logging errors in debug mode if violated.
  *
- * The structure should look like this:
- * <MaxSizedBox>
- *   <Box> // Row 1
- *     <Text>...</Text>
- *     <Text>...</Text>
- *   </Box>
- *   <Box> // Row 2
- *     <Text>...</Text>
- *   </Box>
- * </MaxSizedBox>
- *
- * It is an error for a <Text> child without wrapping to appear after a
- * <Text> child with wrapping within the same row Box.
- *
- * @param element The React node to flatten.
- * @returns An array of `Row` objects.
+ * @param element - The React node expected to be a `<Box>` representing a row.
+ * @returns A `Row` object with separated non-wrapping and wrapping styled text segments.
  */
 function visitBoxRow(element: React.ReactNode): Row {
-  if (!React.isValidElement(element) || element.type !== Box) {
+  if (
+    !React.isValidElement<{ children?: React.ReactNode }>(element) ||
+    element.type !== Box
+  ) {
     debugReportError(
       `All children of MaxSizedBox must be <Box> elements`,
       element,
@@ -258,7 +250,15 @@ function visitBoxRow(element: React.ReactNode): Row {
   }
 
   if (enableDebugLog) {
-    const boxProps = element.props;
+    const boxProps = element.props as {
+      children?: React.ReactNode | undefined;
+      readonly flexDirection?:
+        | 'row'
+        | 'column'
+        | 'row-reverse'
+        | 'column-reverse'
+        | undefined;
+    };
     // Ensure the Box has no props other than the default ones and key.
     let maxExpectedProps = 4;
     if (boxProps.children !== undefined) {
@@ -288,6 +288,11 @@ function visitBoxRow(element: React.ReactNode): Row {
 
   let hasSeenWrapped = false;
 
+  /**
+   * Recursively processes a React node within a row, extracting text segments and merging styling props.
+   *
+   * Traverses `<Text>` elements and fragments, accumulating text segments into either wrapping or non-wrapping arrays based on the `wrap` property. Merges parent and child props for nested `<Text>` elements. Logs errors for invalid structures or unsupported element types.
+   */
   function visitRowChild(
     element: React.ReactNode,
     parentProps: Record<string, unknown> | undefined,
@@ -323,14 +328,13 @@ function visitBoxRow(element: React.ReactNode): Row {
       return;
     }
 
-    if (!React.isValidElement(element)) {
+    if (!React.isValidElement<{ children?: React.ReactNode }>(element)) {
       debugReportError('Invalid element.', element);
       return;
     }
 
     if (element.type === Fragment) {
-      const fragmentChildren = element.props.children;
-      React.Children.forEach(fragmentChildren, (child) =>
+      React.Children.forEach(element.props.children, (child) =>
         visitRowChild(child, parentProps),
       );
       return;

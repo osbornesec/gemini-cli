@@ -294,9 +294,14 @@ function findEnvFile(startDir: string): string | null {
   }
 }
 
+/**
+ * Loads environment variables from a `.env` file located in the current or parent directories.
+ *
+ * Searches for a relevant `.env` file starting from the current working directory and loads its variables into the process environment. Suppresses warnings or errors if the file is missing or malformed.
+ */
 export function loadEnvironment(): void {
   const envFilePath = findEnvFile(process.cwd());
   if (envFilePath) {
-    dotenv.config({ path: envFilePath });
+    dotenv.config({ path: envFilePath, quiet: true });
   }
 }

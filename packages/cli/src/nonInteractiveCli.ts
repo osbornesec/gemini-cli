@@ -43,6 +43,11 @@ function getResponseText(response: GenerateContentResponse): string | null {
   return null;
 }
 
+/**
+ * Runs a non-interactive command-line session with a Gemini chat client, handling streaming responses and tool execution.
+ *
+ * Sends the provided input as a user message, processes streamed chat responses, executes any requested tool calls, and outputs results to stdout. Handles errors and graceful termination, including special handling for missing tools in the registry.
+ */
 export async function runNonInteractive(
   config: Config,
   input: string,
@@ -110,10 +115,15 @@ export async function runNonInteractive(
           );
 
           if (toolResponse.error) {
+            const isToolNotFound = toolResponse.error.message.includes(
+              'not found in registry',
+            );
             console.error(
               `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
             );
-            process.exit(1);
+            if (!isToolNotFound) {
+              process.exit(1);
+            }
           }
 
           if (toolResponse.responseParts) {
