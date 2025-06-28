@@ -68,5 +68,11 @@ describe('formatters', () => {
     it('should handle negative durations', () => {
       expect(formatDuration(-100)).toBe('0s');
     });
+
+    it('should format exact hour with minutes as zero', () => {
+      // This tests the edge case where hours > 0 but minutes and seconds are 0
+      // which triggers the parts.length === 0 fallback logic
+      expect(formatDuration(7200000)).toBe('2h'); // Exactly 2 hours
+    });
   });
 });
