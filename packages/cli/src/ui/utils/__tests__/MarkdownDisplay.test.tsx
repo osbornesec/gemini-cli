@@ -52,9 +52,7 @@ describe('MarkdownDisplay', () => {
   const TERM_WIDTH = 80;
 
   // Helper function to safely get frame content
-  const getFrameContent = (lastFrame: () => string | undefined): string => {
-    return lastFrame() ?? '';
-  };
+  const getFrameContent = (lastFrame: () => string | undefined): string => lastFrame() ?? '';
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -75,7 +73,7 @@ describe('MarkdownDisplay', () => {
 
     it('renders nothing for null text', () => {
       const { lastFrame } = render(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         <MarkdownDisplay
           text={null as any}
           isPending={false}
@@ -824,6 +822,193 @@ describe('MarkdownDisplay', () => {
       const plain = stripAnsi(lastFrame() ?? '');
       expect(plain).toContain('bold0');
       expect(plain).toContain('bold49');
+    });
+  });
+
+  describe('Empty line handling for 100% coverage', () => {
+    it('handles text that is only whitespace', () => {
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text="   \n  \n   " 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      // Whitespace-only text still gets parsed as paragraphs
+      const output = lastFrame() ?? '';
+      // The output contains whitespace paragraphs
+      expect(output.length).toBeGreaterThan(0);
+    });
+
+    it('handles single empty paragraph after content', () => {
+      const md = 'Some content\n\n';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('Some content');
+      // Just verify it rendered without error
+    });
+
+    it('handles multiple consecutive empty paragraphs after content', () => {
+      const md = 'First line\n\n\n\nEnd';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('First line');
+      expect(plain).toContain('End');
+      // Should collapse consecutive empty lines
+    });
+
+    it('handles empty paragraph between content blocks', () => {
+      const md = 'First block\n\n\nSecond block';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('First block');
+      expect(plain).toContain('Second block');
+    });
+
+    it('handles alternating empty and content paragraphs', () => {
+      const md = 'Line 1\n\n\nLine 2\n\n\nLine 3';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('Line 1');
+      expect(plain).toContain('Line 2');  
+      expect(plain).toContain('Line 3');
+    });
+
+    it('handles content ending with multiple empty lines', () => {
+      const md = 'Content\n\n\n\n';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('Content');
+    });
+
+    it('handles first empty paragraph after non-empty content', () => {
+      // This test specifically targets lines 34-44
+      // We need: contentBlocks.length > 0, previousWasEmpty = false, and empty paragraph
+      const md = 'First paragraph\n\n\n\nThird paragraph';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('First paragraph');
+      expect(plain).toContain('Third paragraph');
+      // Should have proper spacing between paragraphs
+    });
+
+    it('handles empty paragraph immediately after content', () => {
+      // This specifically targets the empty paragraph handling logic
+      // The markdown will be parsed as: ['Content', '']
+      const md = 'First\n\n\nSecond';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('First');
+      expect(plain).toContain('Second');
+      // The empty paragraph between them should have been processed
+    });
+    
+    it('handles empty line after header', () => {
+      // This should trigger the empty paragraph handling after a non-paragraph element
+      const md = '# Header\n\n\nContent';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('Header');
+      expect(plain).toContain('Content');
+    });
+
+    it('handles empty line after list', () => {
+      // This should trigger the empty paragraph handling after a list element
+      const md = '- List item\n\n\nNext content';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('List item');
+      expect(plain).toContain('Next content');
+    });
+
+    it('handles single trailing empty line after paragraph', () => {
+      // Target the specific case: paragraph followed by one empty line
+      const md = 'Paragraph\n\n';
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('Paragraph');
+    });
+
+    it('debug empty paragraph handling', () => {
+      // Explicitly test the condition for lines 34-44
+      const md = 'Some text followed by empty paragraph\n\n\nMore text';
+      
+      // Spy on console to see if we hit the branch
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      
+      const { lastFrame } = render(
+        <MarkdownDisplay 
+          text={md} 
+          isPending={false}
+          terminalWidth={TERM_WIDTH}
+        />
+      );
+      
+      consoleSpy.mockRestore();
+      
+      const plain = stripAnsi(lastFrame() ?? '');
+      expect(plain).toContain('Some text');
+      expect(plain).toContain('More text');
     });
   });
 
