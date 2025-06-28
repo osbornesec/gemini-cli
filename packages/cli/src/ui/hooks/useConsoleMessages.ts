@@ -13,6 +13,13 @@ export interface UseConsoleMessagesReturn {
   clearConsoleMessages: () => void;
 }
 
+/**
+ * React hook for managing a list of console messages with batching and deduplication.
+ *
+ * Returns the current array of console messages, a function to add new messages, and a function to clear all messages. Messages added in quick succession are batched and consecutive duplicates are counted.
+ *
+ * @returns An object containing the console messages array, a function to add messages, and a function to clear messages.
+ */
 export function useConsoleMessages(): UseConsoleMessagesReturn {
   const [consoleMessages, setConsoleMessages] = useState<ConsoleMessageItem[]>(
     [],
@@ -25,9 +32,12 @@ export function useConsoleMessages(): UseConsoleMessagesReturn {
       return;
     }
 
+    const newMessagesToAdd = messageQueueRef.current;
+    messageQueueRef.current = [];
+
     setConsoleMessages((prevMessages) => {
       const newMessages = [...prevMessages];
-      messageQueueRef.current.forEach((queuedMessage) => {
+      newMessagesToAdd.forEach((queuedMessage) => {
         if (
           newMessages.length > 0 &&
           newMessages[newMessages.length - 1].type === queuedMessage.type &&
@@ -42,7 +52,6 @@ export function useConsoleMessages(): UseConsoleMessagesReturn {
       return newMessages;
     });
 
-    messageQueueRef.current = [];
     messageQueueTimeoutRef.current = null; // Allow next scheduling
   }, []);
 

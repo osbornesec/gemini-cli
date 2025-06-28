@@ -63,6 +63,17 @@ export type TrackedToolCall =
   | TrackedCompletedToolCall
   | TrackedCancelledToolCall;
 
+/**
+ * React hook for managing tool call scheduling, state, and UI integration.
+ *
+ * Maintains and updates the list of tracked tool calls for display, handles scheduling and completion events, and provides functions to schedule new tool calls and mark tool responses as submitted. Integrates with a core tool scheduler and updates UI state accordingly.
+ *
+ * @param onComplete - Callback invoked when all tool calls are completed, receiving the completed tool calls.
+ * @param config - Configuration object for tool scheduling and registry access.
+ * @param setPendingHistoryItem - Setter for updating the pending history item in the UI.
+ * @param getPreferredEditor - Function returning the preferred editor type, if any.
+ * @returns A tuple containing the current tracked tool calls, a function to schedule tool calls, and a function to mark tool calls as submitted.
+ */
 export function useReactToolScheduler(
   onComplete: (tools: CompletedToolCall[]) => void,
   config: Config,
@@ -128,7 +139,7 @@ export function useReactToolScheduler(
         }),
       );
     },
-    [],
+    [setToolCallsForDisplay],
   );
 
   const scheduler = useMemo(
@@ -152,7 +163,7 @@ export function useReactToolScheduler(
   );
 
   const schedule: ScheduleFn = useCallback(
-    async (
+    (
       request: ToolCallRequestInfo | ToolCallRequestInfo[],
       signal: AbortSignal,
     ) => {

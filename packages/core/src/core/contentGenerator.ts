@@ -47,6 +47,16 @@ export type ContentGeneratorConfig = {
   authType?: AuthType | undefined;
 };
 
+/**
+ * Creates a content generator configuration object based on the specified model, authentication type, and environment variables.
+ *
+ * Determines the effective model to use and sets authentication-related properties such as API keys and Vertex AI flags as needed. Returns a configuration object suitable for initializing a content generator. If required environment variables are missing, returns a partial configuration.
+ *
+ * @param model - The model identifier to use, or undefined to use a default or runtime value.
+ * @param authType - The authentication method to use, or undefined for default behavior.
+ * @param config - Optional configuration object that may provide a runtime model getter.
+ * @returns A promise resolving to the constructed content generator configuration.
+ */
 export async function createContentGeneratorConfig(
   model: string | undefined,
   authType: AuthType | undefined,
@@ -70,7 +80,6 @@ export async function createContentGeneratorConfig(
     return contentGeneratorConfig;
   }
 
-  //
   if (authType === AuthType.USE_GEMINI && geminiApiKey) {
     contentGeneratorConfig.apiKey = geminiApiKey;
     contentGeneratorConfig.model = await getEffectiveModel(

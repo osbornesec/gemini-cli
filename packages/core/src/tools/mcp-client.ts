@@ -159,6 +159,11 @@ export async function discoverMcpTools(
   }
 }
 
+/**
+ * Connects to an MCP server, discovers its available tool functions, and registers them in the tool registry.
+ *
+ * Establishes a connection to the specified MCP server using the appropriate transport based on its configuration. Discovers callable tools provided by the server, sanitizes and registers them in the tool registry, and manages the server's connection status throughout the process. If no tools are discovered or errors occur, the connection is closed and the server status is updated accordingly.
+ */
 async function connectAndDiscover(
   mcpServerName: string,
   mcpServerConfig: MCPServerConfig,
@@ -304,7 +309,7 @@ async function connectAndDiscover(
           toolNameForModel.slice(0, 28) + '___' + toolNameForModel.slice(-32);
       }
 
-      sanatizeParameters(funcDecl.parameters);
+      sanitizeParameters(funcDecl.parameters);
 
       // Ensure parameters is a valid JSON schema object, default to empty if not.
       const parameterSchema: Record<string, unknown> =
@@ -362,7 +367,14 @@ async function connectAndDiscover(
   }
 }
 
-export function sanatizeParameters(schema?: Schema) {
+/**
+ * Recursively removes `default` properties from schemas containing `anyOf` and sanitizes nested schemas.
+ *
+ * This helps prevent conflicts in schema consumers that do not support `default` with `anyOf`.
+ *
+ * @param schema - The JSON schema object to sanitize
+ */
+export function sanitizeParameters(schema?: Schema) {
   if (!schema) {
     return;
   }
@@ -370,15 +382,15 @@ export function sanatizeParameters(schema?: Schema) {
     // Vertex AI gets confused if both anyOf and default are set.
     schema.default = undefined;
     for (const item of schema.anyOf) {
-      sanatizeParameters(item);
+      sanitizeParameters(item);
     }
   }
   if (schema.items) {
-    sanatizeParameters(schema.items);
+    sanitizeParameters(schema.items);
   }
   if (schema.properties) {
     for (const item of Object.values(schema.properties)) {
-      sanatizeParameters(item);
+      sanitizeParameters(item);
     }
   }
 }

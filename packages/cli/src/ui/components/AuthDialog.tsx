@@ -19,6 +19,13 @@ interface AuthDialogProps {
   initialErrorMessage?: string | null;
 }
 
+/**
+ * Renders a dialog for selecting an authentication method, handling validation and user interaction.
+ *
+ * Displays available authentication options, manages selection state, validates the chosen method, and shows error messages or instructions as needed. Prevents exiting without a selection and provides links to terms and privacy information.
+ *
+ * @returns The rendered authentication selection dialog component.
+ */
 export function AuthDialog({
   onSelect,
   onHighlight,
@@ -33,7 +40,7 @@ export function AuthDialog({
       label: 'Login with Google',
       value: AuthType.LOGIN_WITH_GOOGLE_PERSONAL,
     },
-    { label: 'Gemini API Key', value: AuthType.USE_GEMINI },
+    { label: 'Gemini API Key (AI Studio)', value: AuthType.USE_GEMINI },
     { label: 'Vertex AI', value: AuthType.USE_VERTEX_AI },
   ];
 
