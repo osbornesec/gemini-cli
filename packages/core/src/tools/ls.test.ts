@@ -5,17 +5,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { LSTool } from './ls.js';
-import * as fs from 'fs';
+import { lsTool } from './ls.js';
+import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Config } from '../config/config.js';
 
-vi.mock('fs');
+vi.mock('fs/promises');
 vi.mock('path');
 
-describe('LSTool', () => {
-  let lsTool: LSTool;
-  let mockConfig: Config;
+describe('lsTool', () => {
   const mockFs = vi.mocked(fs);
   const mockPath = vi.mocked(path);
 
@@ -23,122 +20,118 @@ describe('LSTool', () => {
     vi.clearAllMocks();
     mockPath.resolve.mockImplementation((p) => p);
     mockPath.join.mockImplementation((...parts) => parts.join('/'));
-    mockPath.isAbsolute.mockImplementation((p) => p.startsWith('/'));
-    mockPath.normalize.mockImplementation((p) => p.toString());
-    mockPath.sep = '/';
-    
-    // Mock config
-    mockConfig = {
-      getFileFilteringRespectGitIgnore: () => true,
-      getFileService: () => ({
-        isIgnored: () => false,
-        getGitIgnoredFileCount: () => 0
-      }),
-      getRootDirectory: () => '/'
-    } as any;
-    
-    lsTool = new LSTool(mockConfig);
   });
 
   it('should list directory contents successfully', async () => {
     const mockFiles = ['file1.txt', 'file2.js', 'directory1'];
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue(mockFiles as any);
+    mockFs.readdir.mockResolvedValue(mockFiles as any);
+    mockFs.stat.mockImplementation((filePath) => {
+      const isDir = filePath.toString().includes('directory');
+      return Promise.resolve({ isDirectory: () => isDir } as any);
+    });
 
-    const result = await lsTool.execute({ path: '/home/test/path' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/test/path' });
 
-    expect(result.llmContent).toContain('file1.txt');
-    expect(result.llmContent).toContain('file2.js');
-    expect(result.llmContent).toContain('directory1');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('file1.txt');
+    expect(result.output).toContain('file2.js');
+    expect(result.output).toContain('directory1/');
   });
 
   it('should handle non-existent directory', async () => {
-    mockFs.statSync.mockImplementation(() => {
-      const error = new Error('ENOENT: no such file or directory') as any;
-      error.code = 'ENOENT';
-      throw error;
-    });
+    mockFs.readdir.mockRejectedValue(new Error('ENOENT: no such file or directory'));
 
-    const result = await lsTool.execute({ path: '/home/non/existent/path' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/non/existent/path' });
 
-    expect(result.llmContent).toContain('Error');
-    expect(result.llmContent).toContain('no such file or directory');
+    expect(result.success).toBe(false);
+    expect(result.output).toContain('Error');
+    expect(result.output).toContain('no such file or directory');
   });
 
   it('should handle permission denied errors', async () => {
-    mockFs.statSync.mockImplementation(() => {
-      const error = new Error('EACCES: permission denied') as any;
-      error.code = 'EACCES';
-      throw error;
-    });
+    mockFs.readdir.mockRejectedValue(new Error('EACCES: permission denied'));
 
-    const result = await lsTool.execute({ path: '/home/restricted/path' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/restricted/path' });
 
-    expect(result.llmContent).toContain('Error');
-    expect(result.llmContent).toContain('permission denied');
+    expect(result.success).toBe(false);
+    expect(result.output).toContain('permission denied');
   });
 
   it('should validate path parameter', async () => {
-    const result = await lsTool.execute({ path: '' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '' });
 
-    expect(result.llmContent).toContain('Invalid parameters');
+    expect(result.success).toBe(false);
+    expect(result.output).toContain('Path is required');
   });
 
-  it('should handle absolute paths', async () => {
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue(['index.js'] as any);
+  it('should handle relative paths', async () => {
+    mockFs.readdir.mockResolvedValue(['index.js'] as any);
+    mockFs.stat.mockResolvedValue({ isDirectory: () => false } as any);
 
-    const result = await lsTool.execute({ path: '/home/src' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: './src' });
 
-    expect(result.llmContent).toContain('index.js');
+    expect(result.success).toBe(true);
+    expect(mockFs.readdir).toHaveBeenCalledWith('./src');
   });
 
   it('should sort directory entries alphabetically', async () => {
     const mockFiles = ['z-file', 'a-file', 'b-directory'];
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue(mockFiles as any);
+    mockFs.readdir.mockResolvedValue(mockFiles as any);
+    mockFs.stat.mockResolvedValue({ isDirectory: () => false } as any);
 
-    const result = await lsTool.execute({ path: '/home/test' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/test' });
 
-    const output = result.llmContent;
+    expect(result.success).toBe(true);
+    const output = result.output;
     expect(output.indexOf('a-file')).toBeLessThan(output.indexOf('z-file'));
   });
 
   it('should handle empty directories', async () => {
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue([]);
+    mockFs.readdir.mockResolvedValue([]);
 
-    const result = await lsTool.execute({ path: '/home/empty' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/empty' });
 
-    expect(result.llmContent).toContain('empty');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('No files found');
   });
 
   it('should include hidden files', async () => {
     const mockFiles = ['.hidden', '.gitignore', 'visible.txt'];
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue(mockFiles as any);
+    mockFs.readdir.mockResolvedValue(mockFiles as any);
+    mockFs.stat.mockResolvedValue({ isDirectory: () => false } as any);
 
-    const result = await lsTool.execute({ path: '/home/test' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/test' });
 
-    expect(result.llmContent).toContain('.hidden');
-    expect(result.llmContent).toContain('.gitignore');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('.hidden');
+    expect(result.output).toContain('.gitignore');
   });
 
   it('should handle symbolic links', async () => {
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue(['symlink'] as any);
+    mockFs.readdir.mockResolvedValue(['symlink'] as any);
+    mockFs.stat.mockResolvedValue({ 
+      isDirectory: () => false,
+      isSymbolicLink: () => true 
+    } as any);
 
-    const result = await lsTool.execute({ path: '/home/test' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/test' });
 
-    expect(result.llmContent).toContain('symlink');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('symlink');
   });
 
-  it('should provide file listing information', async () => {
-    mockFs.statSync.mockReturnValue({ isDirectory: () => true } as any);
-    mockFs.readdirSync.mockReturnValue(['file.txt'] as any);
+  it('should provide detailed file information when requested', async () => {
+    mockFs.readdir.mockResolvedValue(['file.txt'] as any);
+    mockFs.stat.mockResolvedValue({ 
+      isDirectory: () => false,
+      size: 1024,
+      mtime: new Date('2023-01-01'),
+    } as any);
 
-    const result = await lsTool.execute({ path: '/home/test' }, new AbortController().signal);
+    const result = await lsTool.execute({ path: '/test', detailed: true });
 
-    expect(result.llmContent).toContain('file.txt');
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('1024');
+    expect(result.output).toContain('2023');
   });
 });

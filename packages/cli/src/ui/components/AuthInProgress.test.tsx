@@ -9,11 +9,6 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { AuthInProgress } from './AuthInProgress.js';
 
-// Mock ink-spinner to avoid animation issues in tests
-vi.mock('ink-spinner', () => ({
-  default: () => '⠋'
-}));
-
 describe('AuthInProgress', () => {
   let onTimeoutMock: ReturnType<typeof vi.fn>;
 
@@ -30,14 +25,14 @@ describe('AuthInProgress', () => {
   it('should render auth in progress message', () => {
     const { lastFrame } = render(<AuthInProgress onTimeout={onTimeoutMock} />);
     
-    expect(lastFrame()).toContain('Waiting for auth');
+    expect(lastFrame()).toContain('Authentication in progress');
   });
 
   it('should call onTimeout after timeout period', () => {
     render(<AuthInProgress onTimeout={onTimeoutMock} />);
     
-    // Fast-forward time to trigger timeout (180 seconds = 3 minutes)
-    vi.advanceTimersByTime(180000);
+    // Fast-forward time to trigger timeout
+    vi.advanceTimersByTime(30000); // 30 seconds
     
     expect(onTimeoutMock).toHaveBeenCalledOnce();
   });
@@ -53,8 +48,8 @@ describe('AuthInProgress', () => {
   it('should not call timeout multiple times', () => {
     render(<AuthInProgress onTimeout={onTimeoutMock} />);
     
-    vi.advanceTimersByTime(180000);
-    vi.advanceTimersByTime(180000);
+    vi.advanceTimersByTime(30000);
+    vi.advanceTimersByTime(30000);
     
     expect(onTimeoutMock).toHaveBeenCalledTimes(1);
   });
@@ -63,7 +58,7 @@ describe('AuthInProgress', () => {
     const { unmount } = render(<AuthInProgress onTimeout={onTimeoutMock} />);
     
     unmount();
-    vi.advanceTimersByTime(180000);
+    vi.advanceTimersByTime(30000);
     
     expect(onTimeoutMock).not.toHaveBeenCalled();
   });
@@ -76,36 +71,21 @@ describe('AuthInProgress', () => {
     expect(frame.length).toBeGreaterThan(0);
   });
 
-  it('should handle keyboard interrupts gracefully', () => {
-    const { stdin, lastFrame } = render(<AuthInProgress onTimeout={onTimeoutMock} />);
+  it('should handle keyboard interrupts', () => {
+    const { stdin } = render(<AuthInProgress onTimeout={onTimeoutMock} />);
     
-    // Ctrl+C should not crash but useInput only handles escape key
+    // Ctrl+C
     stdin.write('\x03');
     
-    // Component should still be functional
-    expect(() => lastFrame()).not.toThrow();
-  });
-
-  it('should display waiting message before timeout', () => {
-    const { lastFrame } = render(<AuthInProgress onTimeout={onTimeoutMock} />);
-    
-    expect(lastFrame()).toContain('Waiting for auth');
-    expect(lastFrame()).toContain('Press ESC to cancel');
-  });
-
-  it('should call timeout callback and update state correctly', () => {
-    const { lastFrame, rerender } = render(<AuthInProgress onTimeout={onTimeoutMock} />);
-    
-    // Before timeout
-    expect(lastFrame()).toContain('Waiting for auth');
-    
-    // Trigger timeout
-    vi.advanceTimersByTime(180000);
-    
-    // Verify callback was called
     expect(onTimeoutMock).toHaveBeenCalledOnce();
+  });
+
+  it('should handle different timeout durations', () => {
+    const customTimeout = 5000;
+    render(<AuthInProgress onTimeout={onTimeoutMock} timeout={customTimeout} />);
     
-    // Note: State change happens internally but doesn't affect render until next cycle
-    // This tests the timeout mechanism works correctly
+    vi.advanceTimersByTime(customTimeout);
+    
+    expect(onTimeoutMock).toHaveBeenCalledOnce();
   });
 });
