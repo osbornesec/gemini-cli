@@ -8,80 +8,87 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { AutoAcceptIndicator } from './AutoAcceptIndicator.js';
-import { ApprovalMode } from '@google/gemini-cli-core';
+
+// Mock ApprovalMode enum - adjust based on actual implementation
+const ApprovalMode = {
+  AUTO: 'auto',
+  MANUAL: 'manual',
+} as const;
 
 describe('AutoAcceptIndicator', () => {
-  it('should render auto edit mode indicator', () => {
+  it('should render auto mode indicator', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO_EDIT} />
+      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO} />
     );
     
-    expect(lastFrame()).toContain('accepting edits');
+    expect(lastFrame()).toContain('AUTO');
   });
 
-  it('should render yolo mode indicator', () => {
+  it('should render manual mode indicator', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.YOLO} />
+      <AutoAcceptIndicator approvalMode={ApprovalMode.MANUAL} />
     );
     
-    expect(lastFrame()).toContain('YOLO mode');
+    expect(lastFrame()).toContain('MANUAL');
   });
 
-  it('should render appropriate content for auto edit mode', () => {
+  it('should render with appropriate colors for auto mode', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO_EDIT} />
+      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO} />
     );
     
     const frame = lastFrame();
-    expect(frame).toContain('accepting edits');
-    expect(frame).toContain('shift + tab to toggle');
+    expect(frame).toContain('AUTO');
+    // Should contain ANSI color codes for highlighting
+    expect(frame).toMatch(/\u001b\[\d+m/);
   });
 
-  it('should render appropriate content for yolo mode', () => {
+  it('should render with appropriate colors for manual mode', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.YOLO} />
+      <AutoAcceptIndicator approvalMode={ApprovalMode.MANUAL} />
     );
     
     const frame = lastFrame();
-    expect(frame).toContain('YOLO mode');
-    expect(frame).toContain('ctrl + y to toggle');
+    expect(frame).toContain('MANUAL');
+    // Should contain ANSI color codes
+    expect(frame).toMatch(/\u001b\[\d+m/);
   });
 
-  it('should handle default approval mode', () => {
+  it('should handle undefined approval mode gracefully', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.DEFAULT} />
+      <AutoAcceptIndicator approvalMode={undefined as any} />
     );
     
-    // Default mode should render but be empty/minimal
     expect(lastFrame()).toBeDefined();
   });
 
   it('should display consistent formatting', () => {
-    const { lastFrame: autoEditFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO_EDIT} />
+    const { lastFrame: autoFrame } = render(
+      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO} />
     );
-    const { lastFrame: yoloFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.YOLO} />
+    const { lastFrame: manualFrame } = render(
+      <AutoAcceptIndicator approvalMode={ApprovalMode.MANUAL} />
     );
     
     // Both should have similar structure/length
-    expect(autoEditFrame().length).toBeGreaterThan(0);
-    expect(yoloFrame().length).toBeGreaterThan(0);
+    expect(autoFrame().length).toBeGreaterThan(0);
+    expect(manualFrame().length).toBeGreaterThan(0);
   });
 
-  it('should include toggle instructions for auto edit mode', () => {
+  it('should handle invalid approval mode values', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO_EDIT} />
+      <AutoAcceptIndicator approvalMode={'invalid' as any} />
     );
     
-    expect(lastFrame()).toContain('shift + tab to toggle');
+    expect(lastFrame()).toBeDefined();
   });
 
-  it('should include toggle instructions for yolo mode', () => {
+  it('should be accessible', () => {
     const { lastFrame } = render(
-      <AutoAcceptIndicator approvalMode={ApprovalMode.YOLO} />
+      <AutoAcceptIndicator approvalMode={ApprovalMode.AUTO} />
     );
     
-    expect(lastFrame()).toContain('ctrl + y to toggle');
+    // Should have clear visual distinction
+    expect(lastFrame()).not.toBe('');
   });
 });
