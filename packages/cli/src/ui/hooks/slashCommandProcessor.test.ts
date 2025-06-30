@@ -1,4 +1,3 @@
-<fixed_code>
 /**
  * @license
  * Copyright 2025 Google LLC
@@ -195,7 +194,7 @@ describe('useSlashCommandProcessor', () => {
       });
 
       expect(mockAddItem).toHaveBeenNthCalledWith(
-        1, // User message
+        1,
         expect.objectContaining({
           type: MessageType.USER,
           text: `/memory add ${fact}`,
@@ -203,7 +202,7 @@ describe('useSlashCommandProcessor', () => {
         expect.any(Number),
       );
       expect(mockAddItem).toHaveBeenNthCalledWith(
-        2, // Info message about attempting to save
+        2,
         expect.objectContaining({
           type: MessageType.INFO,
           text: `Attempting to save to memory: "${fact}"`,
@@ -217,7 +216,6 @@ describe('useSlashCommandProcessor', () => {
         toolArgs: { fact },
       });
 
-      // performMemoryRefresh is no longer called directly here
       expect(mockPerformMemoryRefresh).not.toHaveBeenCalled();
     });
 
@@ -229,14 +227,14 @@ describe('useSlashCommandProcessor', () => {
       });
 
       expect(mockAddItem).toHaveBeenNthCalledWith(
-        2, // After user message
+        2,
         expect.objectContaining({
           type: MessageType.ERROR,
           text: 'Usage: /memory add <text to remember>',
         }),
         expect.any(Number),
       );
-      expect(commandResult).toBe(true); // Command was handled (by showing an error)
+      expect(commandResult).toBe(true);
     });
   });
 
@@ -296,7 +294,6 @@ describe('useSlashCommandProcessor', () => {
 
   describe('/stats command', () => {
     it('should show detailed session statistics', async () => {
-      // Arrange
       const cumulativeStats = {
         totalTokenCount: 900,
         promptTokenCount: 200,
@@ -314,17 +311,15 @@ describe('useSlashCommandProcessor', () => {
       });
 
       const { handleSlashCommand } = getProcessor();
-      const mockDate = new Date('2025-01-01T01:02:03.000Z'); // 1h 2m 3s duration
+      const mockDate = new Date('2025-01-01T01:02:03.000Z');
       vi.setSystemTime(mockDate);
 
-      // Act
       await act(async () => {
         handleSlashCommand('/stats');
       });
 
-      // Assert
       expect(mockAddItem).toHaveBeenNthCalledWith(
-        2, // Called after the user message
+        2,
         expect.objectContaining({
           type: MessageType.STATS,
           stats: cumulativeStats,
@@ -339,7 +334,6 @@ describe('useSlashCommandProcessor', () => {
 
   describe('/about command', () => {
     it('should show the about box with all details including auth and project', async () => {
-      // Arrange
       mockGetCliVersionFn.mockResolvedValue('test-version');
       process.env.SANDBOX = 'gemini-sandbox';
       process.env.GOOGLE_CLOUD_PROJECT = 'test-gcp-project';
@@ -373,13 +367,11 @@ describe('useSlashCommandProcessor', () => {
         ),
       );
 
-      // Act
       await act(async () => {
         await result.current.handleSlashCommand('/about');
       });
 
-      // Assert
-      expect(mockAddItem).toHaveBeenCalledTimes(2); // user message + about message
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -396,7 +388,6 @@ describe('useSlashCommandProcessor', () => {
     });
 
     it('should show sandbox-exec profile when applicable', async () => {
-      // Arrange
       mockGetCliVersionFn.mockResolvedValue('test-version');
       process.env.SANDBOX = 'sandbox-exec';
       process.env.SEATBELT_PROFILE = 'test-profile';
@@ -404,12 +395,10 @@ describe('useSlashCommandProcessor', () => {
 
       const { result } = getProcessorHook();
 
-      // Act
       await act(async () => {
         await result.current.handleSlashCommand('/about');
       });
 
-      // Assert
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -445,3 +434,11 @@ describe('useSlashCommandProcessor', () => {
       await act(async () => {
         commandResult = await handleSlashCommand('/clear');
       });
+
+      expect(mockClearItems).toHaveBeenCalled();
+      expect(mockResetChat).toHaveBeenCalled();
+      expect(mockRefreshStatic).toHaveBeenCalled();
+      expect(commandResult).toBe(true);
+    });
+  });
+});
