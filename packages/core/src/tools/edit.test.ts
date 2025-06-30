@@ -662,7 +662,6 @@ describe('EditTool', () => {
       );
     });
   });
-});
 
   describe('Additional Edge Cases and Error Handling', () => {
     const testFile = 'edge_case_test.txt';

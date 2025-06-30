@@ -32,7 +32,7 @@ interface MockServerConfig {
   toolDiscoveryCommand?: string;
   toolCallCommand?: string;
   mcpServerCommand?: string;
-  mcpServers?: Record<string, MCPServerConfig>; // Use imported MCPServerConfig
+  mcpServers?: Record<string, MCPServerConfig>;
   userAgent: string;
   userMemory: string;
   geminiMdFileCount: number;
@@ -41,12 +41,11 @@ interface MockServerConfig {
   showMemoryUsage?: boolean;
   accessibility?: AccessibilitySettings;
   embeddingModel: string;
-
   getApiKey: Mock<() => string>;
   getModel: Mock<() => string>;
   getSandbox: Mock<() => SandboxConfig | undefined>;
   getTargetDir: Mock<() => string>;
-  getToolRegistry: Mock<() => ToolRegistry>; // Use imported ToolRegistry type
+  getToolRegistry: Mock<() => ToolRegistry>;
   getDebugMode: Mock<() => boolean>;
   getQuestion: Mock<() => string | undefined>;
   getFullContext: Mock<() => boolean>;
@@ -76,8 +75,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const ConfigClassMock = vi
     .fn()
     .mockImplementation((optionsPassedToConstructor) => {
-      const opts = { ...optionsPassedToConstructor }; // Clone
-      // Basic mock structure, will be extended by the instance in tests
+      const opts = { ...optionsPassedToConstructor };
       return {
         apiKey: opts.apiKey || 'test-key',
         model: opts.model || 'test-model-in-mock-factory',
@@ -104,7 +102,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
         getModel: vi.fn(() => opts.model || 'test-model-in-mock-factory'),
         getSandbox: vi.fn(() => opts.sandbox),
         getTargetDir: vi.fn(() => opts.targetDir || '/test/dir'),
-        getToolRegistry: vi.fn(() => ({}) as ToolRegistry), // Simple mock
+        getToolRegistry: vi.fn(() => ({}) as ToolRegistry),
         getDebugMode: vi.fn(() => opts.debugMode || false),
         getQuestion: vi.fn(() => opts.question),
         getFullContext: vi.fn(() => opts.fullContext ?? false),
@@ -166,7 +164,6 @@ vi.mock('./hooks/useLogger', () => ({
 vi.mock('../config/config.js', async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    // @ts-expect-error - this is fine
     ...actual,
     loadHierarchicalGeminiMemory: vi
       .fn()
@@ -214,13 +211,11 @@ describe('App UI', () => {
       model: 'model',
     }) as unknown as MockServerConfig;
 
-    // Ensure the getShowMemoryUsage mock function is specifically set up if not covered by constructor mock
     if (!mockConfig.getShowMemoryUsage) {
       mockConfig.getShowMemoryUsage = vi.fn(() => false);
     }
-    mockConfig.getShowMemoryUsage.mockReturnValue(false); // Default for most tests
+    mockConfig.getShowMemoryUsage.mockReturnValue(false);
 
-    // Ensure a theme is set so the theme dialog does not appear.
     mockSettings = createMockSettings({ theme: 'Default' });
   });
 
@@ -229,12 +224,11 @@ describe('App UI', () => {
       currentUnmount();
       currentUnmount = undefined;
     }
-    vi.clearAllMocks(); // Clear mocks after each test
+    vi.clearAllMocks();
   });
 
   it('should display default "GEMINI.md" in footer when contextFileName is not set and count is 1', async () => {
     mockConfig.getGeminiMdFileCount.mockReturnValue(1);
-    // For this test, ensure showMemoryUsage is false or debugMode is false if it relies on that
     mockConfig.getDebugMode.mockReturnValue(false);
     mockConfig.getShowMemoryUsage.mockReturnValue(false);
 
@@ -245,7 +239,7 @@ describe('App UI', () => {
       />,
     );
     currentUnmount = unmount;
-    await Promise.resolve(); // Wait for any async updates
+    await Promise.resolve();
     expect(lastFrame()).toContain('Using 1 GEMINI.md file');
   });
 
@@ -417,7 +411,6 @@ describe('App UI', () => {
 
     beforeEach(() => {
       originalNoColor = process.env.NO_COLOR;
-      // Ensure no theme is set for these tests
       mockSettings = createMockSettings({});
       mockConfig.getDebugMode.mockReturnValue(false);
       mockConfig.getShowMemoryUsage.mockReturnValue(false);
@@ -458,7 +451,6 @@ describe('App UI', () => {
       expect(lastFrame()).not.toContain('Select Theme');
     });
   });
-});
 
   describe('Error Handling Scenarios', () => {
     it('should handle config with missing required properties gracefully', async () => {
@@ -477,8 +469,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-      
-      // Should still render without crashing
       expect(lastFrame()).toBeDefined();
     });
 
@@ -495,7 +485,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(lastFrame()).toBeDefined();
     });
 
@@ -511,8 +500,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
-      // Should still render without crashing
       expect(lastFrame()).toBeDefined();
     });
   });
@@ -530,8 +517,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
-      // Should show memory-related content when enabled
       expect(mockConfig.getShowMemoryUsage).toHaveBeenCalled();
     });
 
@@ -547,7 +532,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(mockConfig.getShowMemoryUsage).toHaveBeenCalled();
     });
   });
@@ -565,7 +549,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(mockConfig.getDebugMode).toHaveBeenCalled();
       expect(lastFrame()).toBeDefined();
     });
@@ -581,7 +564,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(mockConfig.getDebugMode).toHaveBeenCalled();
     });
   });
@@ -597,7 +579,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getApiKey).toHaveBeenCalled();
     });
 
@@ -611,7 +592,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getModel).toHaveBeenCalled();
     });
 
@@ -625,7 +605,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getVertexAI).toHaveBeenCalled();
     });
   });
@@ -641,7 +620,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getApprovalMode).toHaveBeenCalled();
     });
 
@@ -656,7 +634,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getApprovalMode).toHaveBeenCalled();
       expect(typeof setApprovalModeSpy).toBe('function');
     });
@@ -673,7 +650,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getCoreTools).toHaveBeenCalled();
     });
 
@@ -687,7 +663,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getToolDiscoveryCommand).toHaveBeenCalled();
     });
 
@@ -701,7 +676,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getToolCallCommand).toHaveBeenCalled();
     });
   });
@@ -719,7 +693,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(lastFrame()).toContain('Using 1 GEMINI.md file');
       expect(lastFrame()).not.toContain('MCP server');
     });
@@ -740,7 +713,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(lastFrame()).toContain('Using 10 MCP servers');
     });
 
@@ -754,7 +726,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getMcpServerCommand).toHaveBeenCalled();
     });
   });
@@ -774,7 +745,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getAccessibility).toHaveBeenCalled();
     });
 
@@ -788,7 +758,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getAccessibility).toHaveBeenCalled();
     });
   });
@@ -804,7 +773,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getUserMemory).toHaveBeenCalled();
     });
 
@@ -819,7 +787,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(typeof setUserMemorySpy).toBe('function');
     });
   });
@@ -840,8 +807,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
-      // Should fall back to default behavior
       expect(lastFrame()).toContain('Using 1 GEMINI.md file');
     });
 
@@ -860,8 +825,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
-      // Should fall back to default behavior
       expect(lastFrame()).toContain('Using 2 GEMINI.md files');
     });
 
@@ -878,7 +841,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(lastFrame()).toContain('Using 999 GEMINI.md files');
     });
   });
@@ -898,7 +860,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getSandbox).toHaveBeenCalled();
     });
 
@@ -912,7 +873,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getSandbox).toHaveBeenCalled();
     });
   });
@@ -928,7 +888,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getUserAgent).toHaveBeenCalled();
     });
 
@@ -942,7 +901,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getTargetDir).toHaveBeenCalled();
     });
 
@@ -956,7 +914,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getProjectRoot).toHaveBeenCalled();
     });
   });
@@ -972,7 +929,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getFullContext).toHaveBeenCalled();
     });
 
@@ -986,7 +942,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getQuestion).toHaveBeenCalled();
     });
 
@@ -1000,7 +955,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(mockConfig.getQuestion).toHaveBeenCalled();
     });
   });
@@ -1008,17 +962,17 @@ describe('App UI', () => {
   describe('Theme Configuration Edge Cases', () => {
     it('should handle various theme names', async () => {
       const themes = ['Dark', 'Light', 'HighContrast', 'Custom'];
-      
+
       for (const theme of themes) {
         const themeSettings = createMockSettings({ theme });
-        
+
         const { lastFrame, unmount } = render(
           <App
             config={mockConfig as unknown as ServerConfig}
             settings={themeSettings}
           />,
         );
-        
+
         expect(lastFrame()).not.toContain('Select Theme');
         unmount();
       }
@@ -1036,8 +990,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
-      // Should still render without theme dialog
       expect(lastFrame()).not.toContain('Select Theme');
     });
   });
@@ -1048,7 +1000,7 @@ describe('App UI', () => {
         theme: 'Default',
         // @ts-expect-error - testing unexpected properties
         unexpectedProperty: 'should not crash',
-        // @ts-expect-error - testing unexpected properties  
+        // @ts-expect-error - testing unexpected properties
         numericProperty: 12345,
       });
 
@@ -1059,7 +1011,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(lastFrame()).toBeDefined();
     });
 
@@ -1078,7 +1029,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(lastFrame()).toContain('Using 3 context files');
     });
   });
@@ -1096,7 +1046,6 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(lastFrame()).toContain('Warning 1: API key deprecated');
       expect(lastFrame()).toContain('Warning 2: Update available');
     });
@@ -1110,7 +1059,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(lastFrame()).toBeDefined();
     });
 
@@ -1122,12 +1070,12 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(lastFrame()).toBeDefined();
     });
 
     it('should handle very long startup warning messages', async () => {
-      const longWarning = 'This is a very long warning message that might wrap across multiple lines and should be handled gracefully by the UI without causing layout issues or crashes in the terminal application.';
+      const longWarning =
+        'This is a very long warning message that might wrap across multiple lines and should be handled gracefully by the UI without causing layout issues or crashes in the terminal application.';
 
       const { lastFrame, unmount } = render(
         <App
@@ -1137,7 +1085,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(lastFrame()).toContain('This is a very long warning message');
     });
   });
@@ -1168,46 +1115,41 @@ describe('App UI', () => {
       );
       currentUnmount = unmount;
       await Promise.resolve();
-
       expect(lastFrame()).toContain('Using 5 CUSTOM.md files');
       expect(lastFrame()).toContain('Integration test warning');
       expect(vi.mocked(Tips)).toHaveBeenCalled();
     });
 
     it('should handle minimal configuration gracefully', async () => {
-      // Reset all config methods to return minimal/default values
-      Object.keys(mockConfig).forEach(key => {
-        if (typeof mockConfig[key as keyof MockServerConfig] === 'function') {
-          const fn = mockConfig[key as keyof MockServerConfig] as any;
-          if (fn.mockReturnValue) {
-            if (key.includes('get')) {
-              // Set reasonable defaults for getter methods
-              switch (key) {
-                case 'getGeminiMdFileCount':
-                  fn.mockReturnValue(0);
-                  break;
-                case 'getDebugMode':
-                case 'getShowMemoryUsage':
-                case 'getFullContext':
-                case 'getVertexAI':
-                  fn.mockReturnValue(false);
-                  break;
-                case 'getMcpServers':
-                  fn.mockReturnValue({});
-                  break;
-                case 'getAccessibility':
-                  fn.mockReturnValue({});
-                  break;
-                case 'getUserMemory':
-                case 'getModel':
-                case 'getApiKey':
-                case 'getUserAgent':
-                case 'getTargetDir':
-                  fn.mockReturnValue('');
-                  break;
-                default:
-                  fn.mockReturnValue(undefined);
-              }
+      Object.keys(mockConfig).forEach((key) => {
+        const fn = (mockConfig as any)[key];
+        if (typeof fn === 'function' && fn.mockReturnValue) {
+          if (key.includes('get')) {
+            switch (key) {
+              case 'getGeminiMdFileCount':
+                fn.mockReturnValue(0);
+                break;
+              case 'getDebugMode':
+              case 'getShowMemoryUsage':
+              case 'getFullContext':
+              case 'getVertexAI':
+                fn.mockReturnValue(false);
+                break;
+              case 'getMcpServers':
+                fn.mockReturnValue({});
+                break;
+              case 'getAccessibility':
+                fn.mockReturnValue({});
+                break;
+              case 'getUserMemory':
+              case 'getModel':
+              case 'getApiKey':
+              case 'getUserAgent':
+              case 'getTargetDir':
+                fn.mockReturnValue('');
+                break;
+              default:
+                fn.mockReturnValue(undefined);
             }
           }
         }
@@ -1222,7 +1164,6 @@ describe('App UI', () => {
         />,
       );
       currentUnmount = unmount;
-
       expect(lastFrame()).toBeDefined();
     });
   });
