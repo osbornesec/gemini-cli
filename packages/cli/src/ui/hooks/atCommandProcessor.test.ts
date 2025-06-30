@@ -568,7 +568,7 @@ describe('handleAtCommand', () => {
     });
     
     it("should handle paths with quotes", async () => {
-      const quotedPath = quoted\ file.txt;
+      const quotedPath = 'quoted"file".txt';
       const query = `@${quotedPath}`;
       
       mockReadManyFilesExecute.mockResolvedValue({
@@ -616,7 +616,6 @@ describe('handleAtCommand', () => {
   });
   
   describe("performance and concurrency", () => {
-    
     it("should handle extremely long queries efficiently", async () => {
       const baseText = "This is a very long query with multiple repeated sections. ";
       const longText = baseText.repeat(1000);
@@ -674,6 +673,7 @@ describe('handleAtCommand', () => {
       expect(results.every(r => r.shouldProceed)).toBe(true);
       expect(mockReadManyFilesExecute).toHaveBeenCalledTimes(callCount);
     });
+    
     it("should handle concurrent @ command processing", async () => {
       const file1 = "concurrent1.txt";
       const file2 = "concurrent2.txt";
@@ -708,13 +708,13 @@ describe('handleAtCommand', () => {
       
       expect(results).toHaveLength(2);
       expect(results[0].shouldProceed).toBe(true);
-      expect(results[1].shouldProceed).toBe(true);
+     	expect(results[1].shouldProceed).toBe(true);
       expect(mockReadManyFilesExecute).toHaveBeenCalledTimes(2);
     });
     
     it("should handle very large number of @ references", async () => {
       const fileCount = 50;
-      const files = Array.from({ length: fileCount }, (_, i) => `file${i}.txt`);
+      const	files = Array.from({ length: fileCount}, (_, i) => `file${i}.txt`);
       const query = files.map(f => `@${f}`).join(" ");
       
       mockReadManyFilesExecute.mockResolvedValue({
@@ -726,18 +726,19 @@ describe('handleAtCommand', () => {
         query,
         config: mockConfig,
         addItem: mockAddItem,
-        onDebugMessage: mockOnDebugMessage,
+       	onDebugMessage: mockOnDebugMessage,
         messageId: 1002,
         signal: abortController.signal,
       });
       
-      expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+     	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
         { paths: files, respectGitIgnore: true },
         abortController.signal,
       );
-      expect(result.processedQuery.length).toBeGreaterThan(fileCount);
+     	expect(result.processedQuery.length).toBeGreaterThan(fileCount);
     });
   });
+  
   let abortController: AbortController;
   let mockFileDiscoveryService: Mocked<FileDiscoveryService>;
 
@@ -764,7 +765,6 @@ describe('handleAtCommand', () => {
       returnDisplay: '',
     });
 
-    // Mock FileDiscoveryService
     mockFileDiscoveryService = {
       initialize: vi.fn(),
       shouldGitIgnoreFile: vi.fn(() => false),
@@ -776,7 +776,6 @@ describe('handleAtCommand', () => {
       () => mockFileDiscoveryService,
     );
 
-    // Mock getFileService to return the mocked FileDiscoveryService
     mockConfig.getFileService = vi
       .fn()
       .mockReturnValue(mockFileDiscoveryService);
@@ -800,9 +799,9 @@ describe('handleAtCommand', () => {
       { type: 'user', text: query },
       123,
     );
-    expect(result.processedQuery).toEqual([{ text: query }]);
-    expect(result.shouldProceed).toBe(true);
-    expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
+   	expect(result.processedQuery).toEqual([{ text: query }]);
+   	expect(result.shouldProceed).toBe(true);
+   	expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
   });
 
   it('should pass through original query if only a lone @ symbol is present', async () => {
@@ -826,7 +825,7 @@ describe('handleAtCommand', () => {
     );
   });
 
-  it('should process a valid text file path', async () => {
+ 	it('should process a valid text file path', async () => {
     const filePath = 'path/to/file.txt';
     const query = `@${filePath}`;
     const fileContent = 'This is the file content.';
@@ -835,7 +834,7 @@ describe('handleAtCommand', () => {
       returnDisplay: 'Read 1 file.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -843,36 +842,36 @@ describe('handleAtCommand', () => {
       messageId: 125,
       signal: abortController.signal,
     });
-    expect(mockAddItem).toHaveBeenCalledWith(
+   	expect(mockAddItem).toHaveBeenCalledWith(
       { type: 'user', text: query },
       125,
     );
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [filePath], respectGitIgnore: true },
       abortController.signal,
     );
-    expect(mockAddItem).toHaveBeenCalledWith(
+   	expect(mockAddItem).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'tool_group',
         tools: [expect.objectContaining({ status: ToolCallStatus.Success })],
       }),
       125,
     );
-    expect(result.processedQuery).toEqual([
+   	expect(result.processedQuery).toEqual([
       { text: `@${filePath}` },
       { text: '\n--- Content from referenced files ---' },
       { text: `\nContent from @${filePath}:\n` },
       { text: fileContent },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should process a valid directory path and convert to glob', async () => {
     const dirPath = 'path/to/dir';
     const query = `@${dirPath}`;
     const resolvedGlob = `${dirPath}/**`;
-    const fileContent = 'Directory content.';
+   	const fileContent = 'Directory content.';
     vi.mocked(fsPromises.stat).mockResolvedValue({
       isDirectory: () => true,
     } as Stats);
@@ -881,7 +880,7 @@ describe('handleAtCommand', () => {
       returnDisplay: 'Read directory contents.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -889,44 +888,40 @@ describe('handleAtCommand', () => {
       messageId: 126,
       signal: abortController.signal,
     });
-    expect(mockAddItem).toHaveBeenCalledWith(
+   	expect(mockAddItem).toHaveBeenCalledWith(
       { type: 'user', text: query },
       126,
     );
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [resolvedGlob], respectGitIgnore: true },
       abortController.signal,
     );
-    expect(mockOnDebugMessage).toHaveBeenCalledWith(
+   	expect(mockOnDebugMessage).toHaveBeenCalledWith(
       `Path ${dirPath} resolved to directory, using glob: ${resolvedGlob}`,
     );
-    expect(result.processedQuery).toEqual([
+   	expect(result.processedQuery).toEqual([
       { text: `@${resolvedGlob}` },
       { text: '\n--- Content from referenced files ---' },
       { text: `\nContent from @${resolvedGlob}:\n` },
       { text: fileContent },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should process a valid image file path (as text content for now)', async () => {
     const imagePath = 'path/to/image.png';
-    const query = `@${imagePath}`;
-    // For @-commands, read_many_files is expected to return text or structured text.
-    // If it were to return actual image Part, the test and handling would be different.
-    // Current implementation of read_many_files for images returns base64 in text.
-    const imageFileTextContent = '[base64 image data for path/to/image.png]';
+    const	query = `@${imagePath}`;
     const imagePart = {
       mimeType: 'image/png',
-      inlineData: imageFileTextContent,
+      inlineData: '[base64 image data for path/to/image.png]',
     };
     mockReadManyFilesExecute.mockResolvedValue({
       llmContent: [imagePart],
       returnDisplay: 'Read 1 image.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -934,27 +929,27 @@ describe('handleAtCommand', () => {
       messageId: 127,
       signal: abortController.signal,
     });
-    expect(result.processedQuery).toEqual([
+   	expect(result.processedQuery).toEqual([
       { text: `@${imagePath}` },
       { text: '\n--- Content from referenced files ---' },
       imagePart,
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should handle query with text before and after @command', async () => {
     const textBefore = 'Explain this: ';
-    const filePath = 'doc.md';
+    const	filePath = 'doc.md';
     const textAfter = ' in detail.';
-    const query = `${textBefore}@${filePath}${textAfter}`;
+    const	query = `${textBefore}@${filePath}${textAfter}`;
     const fileContent = 'Markdown content.';
     mockReadManyFilesExecute.mockResolvedValue({
       llmContent: [`--- ${filePath} ---\n\n${fileContent}\n\n`],
       returnDisplay: 'Read 1 doc.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -962,23 +957,23 @@ describe('handleAtCommand', () => {
       messageId: 128,
       signal: abortController.signal,
     });
-    expect(mockAddItem).toHaveBeenCalledWith(
+   	expect(mockAddItem).toHaveBeenCalledWith(
       { type: 'user', text: query },
       128,
     );
-    expect(result.processedQuery).toEqual([
+   	expect(result.processedQuery).toEqual([
       { text: `${textBefore}@${filePath}${textAfter}` },
       { text: '\n--- Content from referenced files ---' },
       { text: `\nContent from @${filePath}:\n` },
       { text: fileContent },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should correctly unescape paths with escaped spaces', async () => {
     const rawPath = 'path/to/my\\ file.txt';
-    const unescapedPath = 'path/to/my file.txt';
+    const	unescapedPath = 'path/to/my file.txt';
     const query = `@${rawPath}`;
     const fileContent = 'Content of file with space.';
     mockReadManyFilesExecute.mockResolvedValue({
@@ -986,7 +981,7 @@ describe('handleAtCommand', () => {
       returnDisplay: 'Read 1 file.',
     });
 
-    await handleAtCommand({
+   	await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -994,7 +989,7 @@ describe('handleAtCommand', () => {
       messageId: 129,
       signal: abortController.signal,
     });
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [unescapedPath], respectGitIgnore: true },
       abortController.signal,
     );
@@ -1007,7 +1002,7 @@ describe('handleAtCommand', () => {
     const content2 = 'Content file2';
     const query = `@${file1} @${file2}`;
 
-    mockReadManyFilesExecute.mockResolvedValue({
+   	mockReadManyFilesExecute.mockResolvedValue({
       llmContent: [
         `--- ${file1} ---\n\n${content1}\n\n`,
         `--- ${file2} ---\n\n${content2}\n\n`,
@@ -1015,7 +1010,7 @@ describe('handleAtCommand', () => {
       returnDisplay: 'Read 2 files.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -1023,11 +1018,11 @@ describe('handleAtCommand', () => {
       messageId: 130,
       signal: abortController.signal,
     });
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [file1, file2], respectGitIgnore: true },
       abortController.signal,
     );
-    expect(result.processedQuery).toEqual([
+   	expect(result.processedQuery).toEqual([
       { text: `@${file1} @${file2}` },
       { text: '\n--- Content from referenced files ---' },
       { text: `\nContent from @${file1}:\n` },
@@ -1036,7 +1031,7 @@ describe('handleAtCommand', () => {
       { text: content2 },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should handle multiple @file references with interleaved text', async () => {
@@ -1049,7 +1044,7 @@ describe('handleAtCommand', () => {
     const text3 = ' please.';
     const query = `${text1}@${file1}${text2}@${file2}${text3}`;
 
-    mockReadManyFilesExecute.mockResolvedValue({
+   	mockReadManyFilesExecute.mockResolvedValue({
       llmContent: [
         `--- ${file1} ---\n\n${content1}\n\n`,
         `--- ${file2} ---\n\n${content2}\n\n`,
@@ -1057,7 +1052,7 @@ describe('handleAtCommand', () => {
       returnDisplay: 'Read 2 files.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -1065,11 +1060,11 @@ describe('handleAtCommand', () => {
       messageId: 131,
       signal: abortController.signal,
     });
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [file1, file2], respectGitIgnore: true },
       abortController.signal,
     );
-    expect(result.processedQuery).toEqual([
+   	expect(result.processedQuery).toEqual([
       { text: `${text1}@${file1}${text2}@${file2}${text3}` },
       { text: '\n--- Content from referenced files ---' },
       { text: `\nContent from @${file1}:\n` },
@@ -1078,7 +1073,7 @@ describe('handleAtCommand', () => {
       { text: content2 },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should handle a mix of valid, invalid, and lone @ references', async () => {
@@ -1090,30 +1085,27 @@ describe('handleAtCommand', () => {
     const resolvedFile2 = 'resolved/valid2.actual';
     const content2 = 'Globbed content';
 
-    // Mock fs.stat for file1 (valid)
     vi.mocked(fsPromises.stat).mockImplementation(async (p) => {
       if (p.toString().endsWith(file1))
         return { isDirectory: () => false } as Stats;
-      if (p.toString().endsWith(invalidFile))
+     	if (p.toString().endsWith(invalidFile))
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      // For valid2.glob, stat will fail, triggering glob
-      if (p.toString().endsWith(file2Glob))
+     	if (p.toString().endsWith(file2Glob))
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      return { isDirectory: () => false } as Stats; // Default
+     	return { isDirectory: () => false } as Stats;
     });
 
-    // Mock glob to find resolvedFile2 for valid2.glob
-    mockGlobExecute.mockImplementation(async (params) => {
+   	mockGlobExecute.mockImplementation(async (params) => {
       if (params.pattern.includes('valid2.glob')) {
         return {
           llmContent: `Found files:\n${mockGetTargetDir()}/${resolvedFile2}`,
           returnDisplay: 'Found 1 file',
         };
       }
-      return { llmContent: 'No files found', returnDisplay: '' };
+     	return { llmContent: 'No files found', returnDisplay: '' };
     });
 
-    mockReadManyFilesExecute.mockResolvedValue({
+   	mockReadManyFilesExecute.mockResolvedValue({
       llmContent: [
         `--- ${file1} ---\n\n${content1}\n\n`,
         `--- ${resolvedFile2} ---\n\n${content2}\n\n`,
@@ -1121,7 +1113,7 @@ describe('handleAtCommand', () => {
       returnDisplay: 'Read 2 files.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -1130,12 +1122,11 @@ describe('handleAtCommand', () => {
       signal: abortController.signal,
     });
 
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [file1, resolvedFile2], respectGitIgnore: true },
       abortController.signal,
     );
-    expect(result.processedQuery).toEqual([
-      // Original query has @nonexistent.txt and @, but resolved has @resolved/valid2.actual
+   	expect(result.processedQuery).toEqual([
       {
         text: `Look at @${file1} then @${invalidFile} and also just @ symbol, then @${resolvedFile2}`,
       },
@@ -1146,14 +1137,14 @@ describe('handleAtCommand', () => {
       { text: content2 },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
-    expect(mockOnDebugMessage).toHaveBeenCalledWith(
+   	expect(result.shouldProceed).toBe(true);
+   	expect(mockOnDebugMessage).toHaveBeenCalledWith(
       `Path ${invalidFile} not found directly, attempting glob search.`,
     );
-    expect(mockOnDebugMessage).toHaveBeenCalledWith(
+   	expect(mockOnDebugMessage).toHaveBeenCalledWith(
       `Glob search for '**/*${invalidFile}*' found no files or an error. Path ${invalidFile} will be skipped.`,
     );
-    expect(mockOnDebugMessage).toHaveBeenCalledWith(
+   	expect(mockOnDebugMessage).toHaveBeenCalledWith(
       'Lone @ detected, will be treated as text in the modified query.',
     );
   });
@@ -1163,12 +1154,12 @@ describe('handleAtCommand', () => {
     vi.mocked(fsPromises.stat).mockRejectedValue(
       Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
     );
-    mockGlobExecute.mockResolvedValue({
+   	mockGlobExecute.mockResolvedValue({
       llmContent: 'No files found',
       returnDisplay: '',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
@@ -1176,94 +1167,77 @@ describe('handleAtCommand', () => {
       messageId: 133,
       signal: abortController.signal,
     });
-    expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
-    // The modified query string will be "Check @nonexistent.txt and @ also" because no paths were resolved for reading.
-    expect(result.processedQuery).toEqual([
+   	expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
+   	expect(result.processedQuery).toEqual([
       { text: 'Check @nonexistent.txt and @ also' },
     ]);
-
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   it('should process a file path case-insensitively', async () => {
-    // const actualFilePath = 'path/to/MyFile.txt'; // Unused, path in llmContent should match queryPath
-    const queryPath = 'path/to/myfile.txt'; // Different case
-    const query = `@${queryPath}`;
+    const queryPath = 'path/to/myfile.txt';
+    const	query = `@${queryPath}`;
     const fileContent = 'This is the case-insensitive file content.';
 
-    // Mock fs.stat to "find" MyFile.txt when looking for myfile.txt
-    // This simulates a case-insensitive file system or resolution
     vi.mocked(fsPromises.stat).mockImplementation(async (p) => {
       if (p.toString().toLowerCase().endsWith('myfile.txt')) {
-        return {
+       	return {
           isDirectory: () => false,
-          // You might need to add other Stats properties if your code uses them
         } as Stats;
       }
-      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+     	throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
     });
 
-    mockReadManyFilesExecute.mockResolvedValue({
+   	mockReadManyFilesExecute.mockResolvedValue({
       llmContent: [`--- ${queryPath} ---\n\n${fileContent}\n\n`],
       returnDisplay: 'Read 1 file.',
     });
 
-    const result = await handleAtCommand({
+   	const result = await handleAtCommand({
       query,
       config: mockConfig,
       addItem: mockAddItem,
       onDebugMessage: mockOnDebugMessage,
-      messageId: 134, // New messageId
+      messageId: 134,
       signal: abortController.signal,
     });
 
-    expect(mockAddItem).toHaveBeenCalledWith(
+   	expect(mockAddItem).toHaveBeenCalledWith(
       { type: 'user', text: query },
       134,
     );
-    // The atCommandProcessor resolves the path before calling read_many_files.
-    // We expect it to be called with the path that fs.stat "found".
-    // In a real case-insensitive FS, stat(myfile.txt) might return info for MyFile.txt.
-    // The key is that *a* valid path that points to the content is used.
-    expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
-      // Depending on how path resolution and fs.stat mock interact,
-      // this could be queryPath or actualFilePath.
-      // For this test, we'll assume the processor uses the path that stat "succeeded" with.
-      // If the underlying fs/stat is truly case-insensitive, it might resolve to actualFilePath.
-      // If the mock is simpler, it might use queryPath if stat(queryPath) succeeds.
-      // The most important part is that *some* version of the path that leads to the content is used.
-      // Let's assume it uses the path from the query if stat confirms it exists (even if different case on disk)
+   	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
       { paths: [queryPath], respectGitIgnore: true },
       abortController.signal,
     );
-    expect(mockAddItem).toHaveBeenCalledWith(
+   	expect(mockAddItem).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'tool_group',
         tools: [expect.objectContaining({ status: ToolCallStatus.Success })],
       }),
       134,
     );
-    expect(result.processedQuery).toEqual([
-      { text: `@${queryPath}` }, // Query uses the input path
+   	expect(result.processedQuery).toEqual([
+      { text: `@${queryPath}` },
       { text: '\n--- Content from referenced files ---' },
-      { text: `\nContent from @${queryPath}:\n` }, // Content display also uses input path
+      { text: `\nContent from @${queryPath}:\n` },
       { text: fileContent },
       { text: '\n--- End of content ---' },
     ]);
-    expect(result.shouldProceed).toBe(true);
+   	expect(result.shouldProceed).toBe(true);
   });
 
   describe("parsing functionality edge cases", () => {
     it("should handle @ symbols within file paths", async () => {
       const filePath = "user@domain/file.txt";
-      const query = `@${filePath}`;
+      const	query = `@${filePath}`;
       
       mockReadManyFilesExecute.mockResolvedValue({
         llmContent: [`--- ${filePath} ---\n\nEmail-like path content\n\n`],
         returnDisplay: "Read 1 file.",
       });
       
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1272,20 +1246,20 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
       
-      expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+     	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
         { paths: [filePath], respectGitIgnore: true },
         abortController.signal,
       );
-      expect(result.shouldProceed).toBe(true);
+     	expect(result.shouldProceed).toBe(true);
     });
     
     it("should handle nested @ references in complex queries", async () => {
       const nestedQuery = "Compare @file1.txt with @file2.txt and email user@example.com about @results.log";
-      const file1Content = "File 1 content";
-      const file2Content = "File 2 content";
-      const file3Content = "Results content";
+      const	file1Content = "File 1 content";
+      const	file2Content = "File 2 content";
+      const	file3Content = "Results content";
       
-      mockReadManyFilesExecute.mockResolvedValue({
+     	mockReadManyFilesExecute.mockResolvedValue({
         llmContent: [
           `--- file1.txt ---\n\n${file1Content}\n\n`,
           `--- file2.txt ---\n\n${file2Content}\n\n`,
@@ -1294,7 +1268,7 @@ describe('handleAtCommand', () => {
         returnDisplay: "Read 3 files.",
       });
       
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query: nestedQuery,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1303,25 +1277,25 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
       
-      expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+     	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
         { paths: ["file1.txt", "file2.txt", "results.log"], respectGitIgnore: true },
         abortController.signal,
       );
-      expect(result.processedQuery).toContainEqual({ text: file1Content });
-      expect(result.processedQuery).toContainEqual({ text: file2Content });
-      expect(result.processedQuery).toContainEqual({ text: file3Content });
+     	expect(result.processedQuery).toContainEqual({ text: file1Content });
+     	expect(result.processedQuery).toContainEqual({ text: file2Content });
+     	expect(result.processedQuery).toContainEqual({ text: file3Content });
     });
     
     it("should handle @ commands at word boundaries correctly", async () => {
       const query = "email@domain.com has @file.txt and contact@company.org";
-      const fileContent = "File content";
+      const	fileContent = "File content";
       
-      mockReadManyFilesExecute.mockResolvedValue({
+     	mockReadManyFilesExecute.mockResolvedValue({
         llmContent: [`--- file.txt ---\n\n${fileContent}\n\n`],
         returnDisplay: "Read 1 file.",
       });
       
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1330,11 +1304,11 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
       
-      expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+     	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
         { paths: ["file.txt"], respectGitIgnore: true },
         abortController.signal,
       );
-      expect(result.processedQuery).toContainEqual({ text: fileContent });
+     	expect(result.processedQuery).toContainEqual({ text: fileContent });
     });
   });
 
@@ -1343,12 +1317,11 @@ describe('handleAtCommand', () => {
       const gitIgnoredFile = 'node_modules/package.json';
       const query = `@${gitIgnoredFile}`;
 
-      // Mock the file discovery service to report this file as git-ignored
-      mockFileDiscoveryService.shouldGitIgnoreFile.mockImplementation(
+     	mockFileDiscoveryService.shouldGitIgnoreFile.mockImplementation(
         (path: string) => path === gitIgnoredFile,
       );
 
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1357,32 +1330,32 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
 
-      expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
+     	expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
         gitIgnoredFile,
       );
-      expect(mockOnDebugMessage).toHaveBeenCalledWith(
+     	expect(mockOnDebugMessage).toHaveBeenCalledWith(
         `Path ${gitIgnoredFile} is git-ignored and will be skipped.`,
       );
-      expect(mockOnDebugMessage).toHaveBeenCalledWith(
+     	expect(mockOnDebugMessage).toHaveBeenCalledWith(
         'Ignored 1 git-ignored files: node_modules/package.json',
       );
-      expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
-      expect(result.processedQuery).toEqual([{ text: query }]);
-      expect(result.shouldProceed).toBe(true);
+     	expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
+     	expect(result.processedQuery).toEqual([{ text: query }]);
+     	expect(result.shouldProceed).toBe(true);
     });
 
     it('should process non-git-ignored files normally', async () => {
       const validFile = 'src/index.ts';
       const query = `@${validFile}`;
-      const fileContent = 'console.log("Hello world");';
+      const	fileContent = 'console.log("Hello world");';
 
-      mockFileDiscoveryService.shouldGitIgnoreFile.mockReturnValue(false);
-      mockReadManyFilesExecute.mockResolvedValue({
+     	mockFileDiscoveryService.shouldGitIgnoreFile.mockReturnValue(false);
+     	mockReadManyFilesExecute.mockResolvedValue({
         llmContent: [`--- ${validFile} ---\n\n${fileContent}\n\n`],
         returnDisplay: 'Read 1 file.',
       });
 
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1391,38 +1364,38 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
 
-      expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
+     	expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
         validFile,
       );
-      expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+     	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
         { paths: [validFile], respectGitIgnore: true },
         abortController.signal,
       );
-      expect(result.processedQuery).toEqual([
+     	expect(result.processedQuery).toEqual([
         { text: `@${validFile}` },
         { text: '\n--- Content from referenced files ---' },
         { text: `\nContent from @${validFile}:\n` },
         { text: fileContent },
         { text: '\n--- End of content ---' },
       ]);
-      expect(result.shouldProceed).toBe(true);
+     	expect(result.shouldProceed).toBe(true);
     });
 
     it('should handle mixed git-ignored and valid files', async () => {
       const validFile = 'README.md';
       const gitIgnoredFile = '.env';
       const query = `@${validFile} @${gitIgnoredFile}`;
-      const fileContent = '# Project README';
+      const	fileContent = '# Project README';
 
-      mockFileDiscoveryService.shouldGitIgnoreFile.mockImplementation(
+     	mockFileDiscoveryService.shouldGitIgnoreFile.mockImplementation(
         (path: string) => path === gitIgnoredFile,
       );
-      mockReadManyFilesExecute.mockResolvedValue({
+     	mockReadManyFilesExecute.mockResolvedValue({
         llmContent: [`--- ${validFile} ---\n\n${fileContent}\n\n`],
         returnDisplay: 'Read 1 file.',
       });
 
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1431,39 +1404,39 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
 
-      expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
+     	expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
         validFile,
       );
-      expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
+     	expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
         gitIgnoredFile,
       );
-      expect(mockOnDebugMessage).toHaveBeenCalledWith(
+     	expect(mockOnDebugMessage).toHaveBeenCalledWith(
         `Path ${gitIgnoredFile} is git-ignored and will be skipped.`,
       );
-      expect(mockOnDebugMessage).toHaveBeenCalledWith(
+     	expect(mockOnDebugMessage).toHaveBeenCalledWith(
         'Ignored 1 git-ignored files: .env',
       );
-      expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
+     	expect(mockReadManyFilesExecute).toHaveBeenCalledWith(
         { paths: [validFile], respectGitIgnore: true },
         abortController.signal,
       );
-      expect(result.processedQuery).toEqual([
+     	expect(result.processedQuery).toEqual([
         { text: `@${validFile} @${gitIgnoredFile}` },
         { text: '\n--- Content from referenced files ---' },
         { text: `\nContent from @${validFile}:\n` },
         { text: fileContent },
         { text: '\n--- End of content ---' },
       ]);
-      expect(result.shouldProceed).toBe(true);
+     	expect(result.shouldProceed).toBe(true);
     });
 
     it('should always ignore .git directory files', async () => {
       const gitFile = '.git/config';
       const query = `@${gitFile}`;
 
-      mockFileDiscoveryService.shouldGitIgnoreFile.mockReturnValue(true);
+     	mockFileDiscoveryService.shouldGitIgnoreFile.mockReturnValue(true);
 
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1472,32 +1445,32 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
 
-      expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
+     	expect(mockFileDiscoveryService.shouldGitIgnoreFile).toHaveBeenCalledWith(
         gitFile,
       );
-      expect(mockOnDebugMessage).toHaveBeenCalledWith(
+     	expect(mockOnDebugMessage).toHaveBeenCalledWith(
         `Path ${gitFile} is git-ignored and will be skipped.`,
       );
-      expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
-      expect(result.processedQuery).toEqual([{ text: query }]);
-      expect(result.shouldProceed).toBe(true);
+     	expect(mockReadManyFilesExecute).not.toHaveBeenCalled();
+     	expect(result.processedQuery).toEqual([{ text: query }]);
+     	expect(result.shouldProceed).toBe(true);
     });
   });
 
-  describe('when recursive file search is disabled', () => {
+ 	describe('when recursive file search is disabled', () => {
     beforeEach(() => {
       vi.mocked(mockConfig.getEnableRecursiveFileSearch).mockReturnValue(false);
     });
 
     it('should not use glob search for a nonexistent file', async () => {
       const invalidFile = 'nonexistent.txt';
-      const query = `@${invalidFile}`;
+      const	query = `@${invalidFile}`;
 
-      vi.mocked(fsPromises.stat).mockRejectedValue(
+     	vi.mocked(fsPromises.stat).mockRejectedValue(
         Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
       );
 
-      const result = await handleAtCommand({
+     	const result = await handleAtCommand({
         query,
         config: mockConfig,
         addItem: mockAddItem,
@@ -1506,12 +1479,12 @@ describe('handleAtCommand', () => {
         signal: abortController.signal,
       });
 
-      expect(mockGlobExecute).not.toHaveBeenCalled();
-      expect(mockOnDebugMessage).toHaveBeenCalledWith(
+     	expect(mockGlobExecute).not.toHaveBeenCalled();
+     	expect(mockOnDebugMessage).toHaveBeenCalledWith(
         `Glob tool not found. Path ${invalidFile} will be skipped.`,
       );
-      expect(result.processedQuery).toEqual([{ text: query }]);
-      expect(result.shouldProceed).toBe(true);
+     	expect(result.processedQuery).toEqual([{ text: query }]);
+     	expect(result.shouldProceed).toBe(true);
     });
   });
 });
