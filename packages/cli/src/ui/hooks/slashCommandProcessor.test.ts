@@ -25,7 +25,6 @@ vi.mock('node:process', () => ({
       arrayBuffers: 123456,
     })),
   },
-  // Provide top-level exports as well for compatibility
   exit: mockProcessExit,
   cwd: vi.fn(() => '/mock/cwd'),
   get env() {
@@ -54,25 +53,17 @@ vi.mock('../../utils/version.js', () => ({
 }));
 
 import { act, renderHook } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 import open from 'open';
 import {
   useSlashCommandProcessor,
   type SlashCommandActionReturn,
 } from './slashCommandProcessor.js';
 import { MessageType } from '../types.js';
-import {
-  Config,
-  MCPDiscoveryState,
-  MCPServerStatus,
-  getMCPDiscoveryState,
-  getMCPServerStatus,
-  GeminiClient,
-} from '@google/gemini-cli-core';
+import { Config, GeminiClient } from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { LoadedSettings } from '../../config/settings.js';
 import * as ShowMemoryCommandModule from './useShowMemoryCommand.js';
-import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 
 vi.mock('../contexts/SessionContext.js', () => ({
   useSessionStats: vi.fn(),
@@ -153,7 +144,7 @@ describe('useSlashCommandProcessor', () => {
     process.env = { ...globalThis.process.env };
   });
 
-  const getProcessorHook = (showToolDescriptions: boolean = false) => {
+  const getProcessorHook = (showToolDescriptions = false) => {
     const settings = {
       merged: {
         contextFileName: 'GEMINI.md',
@@ -181,7 +172,7 @@ describe('useSlashCommandProcessor', () => {
     );
   };
 
-  const getProcessor = (showToolDescriptions: boolean = false) =>
+  const getProcessor = (showToolDescriptions = false) =>
     getProcessorHook(showToolDescriptions).result.current;
 
   describe('/memory add', () => {
@@ -249,6 +240,7 @@ describe('useSlashCommandProcessor', () => {
       await act(async () => {
         commandResult = await handleSlashCommand('/memory show');
       });
+
       expect(
         ShowMemoryCommandModule.createShowMemoryAction,
       ).toHaveBeenCalledWith(
@@ -268,6 +260,7 @@ describe('useSlashCommandProcessor', () => {
       await act(async () => {
         commandResult = await handleSlashCommand('/memory refresh');
       });
+
       expect(mockPerformMemoryRefresh).toHaveBeenCalled();
       expect(commandResult).toBe(true);
     });
@@ -280,6 +273,7 @@ describe('useSlashCommandProcessor', () => {
       await act(async () => {
         commandResult = await handleSlashCommand('/memory foobar');
       });
+
       expect(mockAddItem).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -315,7 +309,7 @@ describe('useSlashCommandProcessor', () => {
       vi.setSystemTime(mockDate);
 
       await act(async () => {
-        handleSlashCommand('/stats');
+        await handleSlashCommand('/stats');
       });
 
       expect(mockAddItem).toHaveBeenNthCalledWith(
@@ -378,7 +372,7 @@ describe('useSlashCommandProcessor', () => {
           type: 'about',
           cliVersion: 'test-version',
           osVersion: 'test-platform',
-          sandboxEnv: 'gemini-sandbox',
+          sandboxEnv: 'test-sandbox',
           modelVersion: 'test-model-from-config',
           selectedAuthType: 'test-auth-type',
           gcpProject: 'test-gcp-project',
@@ -416,6 +410,7 @@ describe('useSlashCommandProcessor', () => {
       await act(async () => {
         commandResult = await handleSlashCommand('/help');
       });
+
       expect(mockSetShowHelp).toHaveBeenCalledWith(true);
       expect(commandResult).toBe(true);
     });

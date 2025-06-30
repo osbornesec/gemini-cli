@@ -418,13 +418,13 @@ describe('handleAtCommand', () => {
     });
 
     mockGlobExecute.mockImplementation(async (params) => {
-      if (params.pattern.includes('valid2.glob')) {
-        return {
-          llmContent: `Found files:\n${mockGetTargetDir()}/${resolvedFile2}`,
+      if (params.pattern.includes('valid2.glob')) { 
+        return { 
+          llmContent: `Found files:\n${mockGetTargetDir()}/${resolvedFile2}`, 
           returnDisplay: 'Found 1 file',
-        };
-      }
-      return { llmContent: 'No files found', returnDisplay: '' };
+        }; 
+      } 
+      return { llmContent: 'No files found', returnDisplay: '' }; 
     });
 
     mockReadManyFilesExecute.mockResolvedValue({
@@ -829,8 +829,8 @@ describe('handleAtCommand', () => {
       
       expect(mockAddItem).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "tool_group",
-          tools: [expect.objectContaining({ status: ToolCallStatus.Error })],
+          type = "tool_group",
+          tools = [expect.objectContaining({ status = ToolCallStatus.Error })],
         }),
         400,
       );
