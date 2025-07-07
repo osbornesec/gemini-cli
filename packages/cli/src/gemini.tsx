@@ -7,7 +7,7 @@
 import React from 'react';
 import { render } from 'ink';
 import { AppWrapper } from './ui/App.js';
-import { loadCliConfig } from './config/config.js';
+import { loadCliConfig, loadEnvironment } from './config/config.js';
 import { readStdin } from './utils/readStdin.js';
 import { basename } from 'node:path';
 import v8 from 'node:v8';
@@ -84,6 +84,7 @@ async function relaunchWithAdditionalArgs(additionalArgs: string[]) {
 }
 
 export async function main() {
+  loadEnvironment();
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
 

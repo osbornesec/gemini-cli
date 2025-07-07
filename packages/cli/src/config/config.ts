@@ -166,8 +166,6 @@ export async function loadCliConfig(
   extensions: Extension[],
   sessionId: string,
 ): Promise<Config> {
-  loadEnvironment();
-
   const argv = await parseArguments();
   const debugMode = argv.debug || false;
 
